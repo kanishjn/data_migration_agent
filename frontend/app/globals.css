@@ -1,0 +1,1060 @@
+@import "tailwindcss";
+@source "../";
+
+/* ==========================================
+   CSS Variables - Dark Theme (Multi-Color)
+   ========================================== */
+:root {
+  /* Pure black background */
+  --background: #000000;
+  --background-secondary: #0a0a0a;
+  --background-tertiary: #111111;
+
+  /* Crisp white text */
+  --foreground: #fafafa;
+  --foreground-secondary: #d4d4d8;
+  --foreground-muted: #71717a;
+
+  /* Multi-color accents */
+  --accent-cyan: #06b6d4;
+  --accent-magenta: #e879f9;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-primary: #06b6d4;
+  
+  /* Legacy accent for compatibility */
+  --accent: #06b6d4;
+  --accent-foreground: #000000;
+  --accent-gradient: linear-gradient(135deg, #06b6d4 0%, #e879f9 50%, #10b981 100%);
+
+  /* Semantic colors */
+  --success: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.15);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.15);
+  --error: #ef4444;
+  --error-bg: rgba(239, 68, 68, 0.15);
+  --info: #06b6d4;
+  --info-bg: rgba(6, 182, 212, 0.15);
+
+  /* Surface colors - Dark glass effect */
+  --surface: rgba(255, 255, 255, 0.02);
+  --surface-elevated: rgba(255, 255, 255, 0.04);
+  --surface-border: rgba(255, 255, 255, 0.08);
+  --surface-hover: rgba(6, 182, 212, 0.08);
+
+  /* Premium shadows */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lg: 0 12px 32px -8px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-glow-cyan: 0 0 30px rgba(6, 182, 212, 0.2);
+  --shadow-glow-magenta: 0 0 30px rgba(232, 121, 249, 0.2);
+
+  /* Spacing */
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
+  --topbar-height: 64px;
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 500ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* Border radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-full: 9999px;
+}
+
+/* Dark mode uses same as root (always dark) */
+.dark {
+  --background: #000000;
+  --background-secondary: #0a0a0a;
+  --background-tertiary: #111111;
+
+  --foreground: #fafafa;
+  --foreground-secondary: #d4d4d8;
+  --foreground-muted: #71717a;
+
+  --accent-cyan: #06b6d4;
+  --accent-magenta: #e879f9;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-primary: #06b6d4;
+  --accent: #06b6d4;
+  --accent-foreground: #000000;
+  --accent-gradient: linear-gradient(135deg, #06b6d4 0%, #e879f9 50%, #10b981 100%);
+
+  --surface: rgba(255, 255, 255, 0.02);
+  --surface-elevated: rgba(255, 255, 255, 0.04);
+  --surface-border: rgba(255, 255, 255, 0.08);
+  --surface-hover: rgba(6, 182, 212, 0.08);
+
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lg: 0 12px 32px -8px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-glow-cyan: 0 0 30px rgba(6, 182, 212, 0.2);
+  --shadow-glow-magenta: 0 0 30px rgba(232, 121, 249, 0.2);
+}
+
+/* ==========================================
+   Light Mode Theme
+   ========================================== */
+.light {
+  /* Light backgrounds */
+  /* “Powder” white – avoids grey wash */
+  --background: #fcfcfd;
+  --background-secondary: #f8f8fa;
+  --background-tertiary: #f1f2f4;
+
+  /* Dark text */
+  --foreground: #0a0a0a;
+  --foreground-secondary: #18181b;
+  --foreground-muted: #3f3f46;
+
+  /* Multi-color accents (slightly deeper for light mode) */
+  --accent-cyan: #0891b2;
+  --accent-magenta: #c026d3;
+  --accent-emerald: #059669;
+  --accent-amber: #d97706;
+  --accent-primary: #0891b2;
+  --accent: #0891b2;
+  --accent-foreground: #ffffff;
+  --accent-gradient: linear-gradient(135deg, #0891b2 0%, #c026d3 50%, #059669 100%);
+
+  /* Semantic colors */
+  --success: #059669;
+  --success-bg: rgba(5, 150, 105, 0.1);
+  --warning: #d97706;
+  --warning-bg: rgba(217, 119, 6, 0.1);
+  --error: #dc2626;
+  --error-bg: rgba(220, 38, 38, 0.1);
+  --info: #0891b2;
+  --info-bg: rgba(8, 145, 178, 0.1);
+
+  /* Surface colors - Light glass effect */
+  --surface: rgba(0, 0, 0, 0.02);
+  --surface-elevated: rgba(0, 0, 0, 0.04);
+  --surface-border: rgba(0, 0, 0, 0.1);
+  --surface-hover: rgba(8, 145, 178, 0.08);
+
+  /* Light mode shadows */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow-cyan: 0 0 20px rgba(8, 145, 178, 0.15);
+  --shadow-glow-magenta: 0 0 20px rgba(192, 38, 211, 0.15);
+}
+
+/* ==========================================
+   Tailwind Theme Configuration
+   ========================================== */
+@theme inline {
+  --color-background: var(--background);
+  --color-background-secondary: var(--background-secondary);
+  --color-background-tertiary: var(--background-tertiary);
+  --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-border: var(--surface-border);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ==========================================
+   Base Styles
+   ========================================== */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ==========================================
+   Premium Background Pattern (Template Style)
+   ========================================== */
+.premium-background {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--background);
+  overflow: hidden;
+  transition: background 0.3s ease;
+}
+
+/* Subtle grid pattern matching template */
+.dark .premium-background::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 100px 100px;
+  opacity: 0.5;
+}
+
+.light .premium-background::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 100px 100px;
+  opacity: 0.22;
+}
+
+/* Subtle gradient orbs with accent color */
+.dark .premium-background::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -20%, rgba(6, 182, 212, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(232, 121, 249, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.light .premium-background::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -20%, rgba(8, 145, 178, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(192, 38, 211, 0.06) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* ==========================================
+   Noise/Grain Overlay (Template Style)
+   ========================================== */
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+.light .noise-overlay {
+  /* Grain without “grey film” */
+  opacity: 0.06;
+  mix-blend-mode: soft-light;
+}
+
+/* ==========================================
+   Glitch Effect (Template Style)
+   ========================================== */
+@keyframes glitch {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+.glitch:hover {
+  animation: glitch 0.3s ease infinite;
+}
+
+/* ==========================================
+   Text Stroke Effects (Template Style)
+   ========================================== */
+.text-stroke {
+  -webkit-text-stroke: 1px rgba(255,255,255,0.3);
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  background: transparent;
+  paint-order: stroke fill;
+}
+
+.text-stroke-accent {
+  -webkit-text-stroke: 2px #06b6d4;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  background: transparent;
+  paint-order: stroke fill;
+}
+
+.light .text-stroke-accent {
+  -webkit-text-stroke: 2px #0891b2;
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+/* ==========================================
+   Marquee Animation (Template Style)
+   ========================================== */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
+}
+
+/* ==========================================
+   Animated Underline (Template Style)
+   ========================================== */
+.animated-underline {
+  background-image: linear-gradient(#06b6d4, #06b6d4);
+  background-size: 0% 2px;
+  background-position: left bottom;
+  background-repeat: no-repeat;
+  transition: background-size 0.4s ease;
+}
+
+.light .animated-underline {
+  background-image: linear-gradient(#0891b2, #0891b2);
+}
+
+.animated-underline:hover {
+  background-size: 100% 2px;
+}
+
+/* ==========================================
+   Pulse Glow Animation (Template Style)
+   ========================================== */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(6, 182, 212, 0.6); }
+}
+
+.light .pulse-glow {
+  animation: pulseGlowLight 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlowLight {
+  0%, 100% { box-shadow: 0 0 20px rgba(8, 145, 178, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(8, 145, 178, 0.4); }
+}
+
+.pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* ==========================================
+   Blob Animation (Template Style)
+   ========================================== */
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+.animate-pulse-slow {
+  animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ==========================================
+   Premium Card Styles (Template Style)
+   ========================================== */
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-normal);
+}
+
+.light .glass {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.glass:hover {
+  border-color: rgba(6, 182, 212, 0.3);
+  box-shadow: var(--shadow-md), 0 0 20px rgba(6, 182, 212, 0.1);
+}
+
+.light .glass:hover {
+  border-color: rgba(8, 145, 178, 0.3);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+}
+
+.glass-elevated {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal);
+}
+
+.light .glass-elevated {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.glass-elevated:hover {
+  box-shadow: var(--shadow-lg), 0 0 30px rgba(6, 182, 212, 0.15);
+  transform: translateY(-2px);
+  border-color: rgba(6, 182, 212, 0.3);
+}
+
+.light .glass-elevated:hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  border-color: rgba(8, 145, 178, 0.3);
+}
+
+/* ==========================================
+   Gradient Text & Accents (Template Style)
+   ========================================== */
+.text-gradient {
+  background: linear-gradient(135deg, #06b6d4, #e879f9, #10b981);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.light .text-gradient {
+  background: linear-gradient(135deg, #0891b2, #c026d3, #059669);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-border {
+  position: relative;
+  background: rgba(255, 255, 255, 0.03);
+  border: none;
+}
+
+.light .gradient-border {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  background: linear-gradient(135deg, #06b6d4, transparent, #e879f9);
+  border-radius: inherit;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+}
+
+.light .gradient-border::before {
+  background: linear-gradient(135deg, #0891b2, transparent, #c026d3);
+}
+
+/* ==========================================
+   Stat Cards & Metrics (Template Style)
+   ========================================== */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.light .stat-card {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-cyan), transparent);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.stat-card:hover::before {
+  opacity: 1;
+}
+
+.stat-card:hover {
+  border-color: rgba(6, 182, 212, 0.2);
+}
+
+.light .stat-card:hover {
+  border-color: rgba(8, 145, 178, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* ==========================================
+   Premium Button Styles (Template Style)
+   ========================================== */
+.btn-primary {
+  background: #06b6d4;
+  color: #ffffff;
+  font-weight: 600;
+  border: none;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
+  transition: all var(--transition-normal);
+}
+
+.light .btn-primary {
+  background: #0891b2;
+  box-shadow: 0 2px 8px rgba(8, 145, 178, 0.25);
+}
+
+.btn-primary:hover {
+  background: #0891b2;
+  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.4);
+  transform: translateY(-1px);
+}
+
+.light .btn-primary:hover {
+  background: #0e7490;
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-outline {
+  background: transparent;
+  color: #06b6d4;
+  font-weight: 500;
+  border: 1px solid #06b6d4;
+  transition: all var(--transition-normal);
+}
+
+.light .btn-outline {
+  color: #0891b2;
+  border-color: #0891b2;
+}
+
+.btn-outline:hover {
+  background: #06b6d4;
+  color: #ffffff;
+}
+
+.light .btn-outline:hover {
+  background: #0891b2;
+  color: #ffffff;
+}
+
+/* ==========================================
+   Status Indicators
+   ========================================== */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+}
+
+.status-dot::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.3;
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+.status-dot.active {
+  background: var(--success);
+}
+
+.status-dot.warning {
+  background: var(--warning);
+}
+
+.status-dot.error {
+  background: var(--error);
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* ==========================================
+   Chart & Data Visualization
+   ========================================== */
+.chart-container {
+  position: relative;
+  background: linear-gradient(180deg, transparent 0%, rgba(6, 182, 212, 0.05) 100%);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+
+.light .chart-container {
+  background: linear-gradient(180deg, transparent 0%, rgba(8, 145, 178, 0.05) 100%);
+}
+
+/* ==========================================
+   Custom Scrollbar (Template Style)
+   ========================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000;
+}
+
+.light ::-webkit-scrollbar-track,
+.light::-webkit-scrollbar-track {
+  background: #f4f4f5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #06b6d4;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #0891b2;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #06b6d4 #000000;
+}
+
+.light * {
+  scrollbar-color: #0891b2 #f4f4f5;
+}
+
+/* ==========================================
+   Focus Styles (Accessible)
+   ========================================== */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ==========================================
+   Selection Styles (Template Style)
+   ========================================== */
+::selection {
+  background: rgba(6, 182, 212, 0.3);
+  color: var(--foreground);
+}
+
+.light ::selection {
+  background: rgba(8, 145, 178, 0.25);
+}
+
+/* ==========================================
+   Typography Utilities
+   ========================================== */
+.text-balance {
+  text-wrap: balance;
+}
+
+.heading-xl {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.heading-lg {
+  font-size: 1.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.heading-md {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* ==========================================
+   Animation Utilities
+   ========================================== */
+.animate-fade-in {
+  animation: fadeIn var(--transition-normal) ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp var(--transition-normal) ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn var(--transition-spring) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Subtle shimmer effect for loading states */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, var(--surface-hover), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ==========================================
+   Layout Utilities
+   ========================================== */
+.main-content {
+  margin-left: var(--sidebar-width);
+  padding-top: var(--topbar-height);
+  min-height: 100vh;
+  transition: margin-left var(--transition-normal);
+}
+
+.main-content.sidebar-collapsed {
+  margin-left: var(--sidebar-collapsed-width);
+}
+
+@media (max-width: 1024px) {
+  .main-content {
+    margin-left: 0;
+  }
+}
+
+/* ==========================================
+   Interactive States
+   ========================================== */
+.interactive {
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.interactive:hover {
+  background: var(--surface-hover);
+}
+
+.interactive:active {
+  transform: scale(0.98);
+}
+
+/* ==========================================
+   Badge Styles
+   ========================================== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-fast);
+}
+
+.badge-success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.badge-warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.badge-error {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.badge-info {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+/* ==========================================
+   Progress & Meters (Template Style)
+   ========================================== */
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #111111;
+  overflow: hidden;
+}
+
+.light .progress-bar {
+  background: #e4e4e7;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #06b6d4, #0891b2);
+  transition: width var(--transition-slow);
+}
+
+/* ==========================================
+   Incident List Items (Template Style)
+   ========================================== */
+.incident-item {
+  position: relative;
+  padding: 1rem 1.25rem;
+  transition: all var(--transition-fast);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.light .incident-item {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.incident-item:hover {
+  background: rgba(6, 182, 212, 0.05);
+}
+
+.incident-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #06b6d4;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.incident-item:hover::before {
+  opacity: 1;
+}
+
+/* ==========================================
+   3D Scene Light Mode
+   ========================================== */
+.ring-scene-container {
+  opacity: 0.4;
+}
+
+.light .ring-scene-container {
+  opacity: 0.15;
+}
+
+/* ==========================================
+   Surface Utilities (App Semantic Styles)
+   ========================================== */
+
+/* Primary card surface used across pages */
+.surface-card {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-md);
+}
+
+.dark .surface-card {
+  background: rgba(9, 9, 11, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Shared border for surfaces */
+.surface-border {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.dark .surface-border {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Smaller pill chips/badges backgrounds */
+.surface-pill {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.dark .surface-pill {
+  background: rgba(24, 24, 27, 0.75);
+}
+
+/* Inner panels / sub-cards */
+.surface-subcard {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.dark .surface-subcard {
+  background: rgba(39, 39, 42, 0.5);
+}
+
+/* Expanded areas / subtle backgrounds */
+.surface-subtle {
+  background: rgba(250, 250, 250, 0.88);
+}
+
+.dark .surface-subtle {
+  background: rgba(9, 9, 11, 0.35);
+}
+
+/* Safer muted text token for light mode */
+.text-muted {
+  color: var(--foreground-muted);
+}
+
+.text-secondary {
+  color: var(--foreground-secondary);
+}
+
+/* ==========================================
+   Hover Surfaces
+   Avoids grey zinc hover in light mode.
+   ========================================== */
+.hover-surface {
+  transition: background-color var(--transition-fast);
+}
+
+.hover-surface:hover {
+  background: rgba(8, 145, 178, 0.06);
+}
+
+.dark .hover-surface:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Slightly stronger default text rendering */
+body {
+  font-weight: 450;
+}
+
+/* Navigation surfaces (topbar/sidebar) */
+.surface-nav {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-md);
+}
+
+.dark .surface-nav {
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Inputs/search fields */
+.surface-input {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.dark .surface-input {
+  background: rgba(9, 9, 11, 0.55);
+}
+
+/* ==========================================
+   Light Mode Premium Background
+   ========================================== */
+.light .premium-background {
+  background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 55%, #f8f8fa 100%);
+}
+
+/* ==========================================
+   Light Mode Text Overrides (keep dark intact)
+   Ensures “black font” feel in light mode.
+   ========================================== */
+.light .text-zinc-400 { color: #3f3f46; }
+.light .text-zinc-500 { color: #27272a; }
+.light .text-zinc-600 { color: #18181b; }
+.light .text-zinc-700 { color: #0a0a0a; }
