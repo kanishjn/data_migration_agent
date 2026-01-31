@@ -1,0 +1,10 @@
+services:
+  agent:
+    image: python:3.11-slim
+    container_name: agentic-support-agent
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      AGENT_DB_PATH: /app/memory/agent_state.sqlite
+    command: ["sh", "-c", "sleep infinity"]
