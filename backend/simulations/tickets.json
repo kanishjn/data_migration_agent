@@ -1,0 +1,68 @@
+[
+  {
+    "ticket_id": "TKT-2024-001",
+    "merchant_id": "MERCH-A1B2C3",
+    "subject": "Checkout failing after headless migration",
+    "description": "Since we moved to the new headless checkout, customers are seeing 'Payment processing failed' errors at the final step. This started 2 hours ago and we've had 47 failed transactions.",
+    "severity": "critical",
+    "tags": ["checkout", "payment", "headless", "post-migration"],
+    "created_at": "2026-01-31T10:15:00Z",
+    "status": "open",
+    "source": "zendesk"
+  },
+  {
+    "ticket_id": "TKT-2024-002",
+    "merchant_id": "MERCH-D4E5F6",
+    "subject": "Webhook notifications not being received",
+    "description": "Our fulfillment system stopped receiving order webhooks. We're using the v2 endpoint but getting 404 errors. Migration was completed yesterday.",
+    "severity": "high",
+    "tags": ["webhook", "fulfillment", "v2-api", "post-migration"],
+    "created_at": "2026-01-31T09:30:00Z",
+    "status": "open",
+    "source": "zendesk"
+  },
+  {
+    "ticket_id": "TKT-2024-003",
+    "merchant_id": "MERCH-G7H8I9",
+    "subject": "Product prices showing incorrectly on storefront",
+    "description": "After the migration, some products are displaying the wrong prices. The catalog API returns correct data but the storefront shows old cached prices.",
+    "severity": "high",
+    "tags": ["pricing", "cache", "storefront", "in-migration"],
+    "created_at": "2026-01-31T08:45:00Z",
+    "status": "investigating",
+    "source": "intercom"
+  },
+  {
+    "ticket_id": "TKT-2024-004",
+    "merchant_id": "MERCH-J1K2L3",
+    "subject": "API rate limits exceeded during inventory sync",
+    "description": "We're getting 429 errors when trying to sync our 50,000 SKU inventory. The old system handled this fine. Need help with the new rate limits.",
+    "severity": "medium",
+    "tags": ["api", "rate-limit", "inventory", "pre-migration"],
+    "created_at": "2026-01-31T07:20:00Z",
+    "status": "open",
+    "source": "zendesk"
+  },
+  {
+    "ticket_id": "TKT-2024-005",
+    "merchant_id": "MERCH-A1B2C3",
+    "subject": "Payment callback URL configuration",
+    "description": "Follow-up to TKT-2024-001: Our payment provider says the callback URL format changed in headless. Where do we update this in the new dashboard?",
+    "severity": "critical",
+    "tags": ["checkout", "payment", "configuration", "post-migration"],
+    "created_at": "2026-01-31T11:00:00Z",
+    "status": "open",
+    "source": "zendesk"
+  },
+  {
+    "ticket_id": "TKT-2024-006",
+    "merchant_id": "MERCH-M4N5O6",
+    "subject": "Cart abandonment tracking broken",
+    "description": "Our analytics show zero cart abandonment events since migration. The tracking script is installed but events aren't firing.",
+    "severity": "medium",
+    "tags": ["analytics", "tracking", "cart", "post-migration"],
+    "created_at": "2026-01-30T16:30:00Z",
+    "status": "pending",
+    "source": "intercom"
+  }
+]
