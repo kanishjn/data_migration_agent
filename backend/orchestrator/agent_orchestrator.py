@@ -1,0 +1,1 @@
+# Observe → Reason → Decide → Act
