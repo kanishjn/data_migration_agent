@@ -42,7 +42,7 @@ class ActionSuggestion(BaseModel):
     type: str
     priority: Optional[str] = None
     reason: str
-    details: Dict[str, Any]
+    details: str  # Changed from Dict[str, Any] because Gemini doesn't support arbitrary objects
 
 
 class DecisionOutputSchema(BaseModel):
