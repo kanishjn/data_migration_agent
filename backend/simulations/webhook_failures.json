@@ -10,8 +10,7 @@
     "retry_count": 5,
     "expected_version": "v3",
     "actual_version": "v2",
-    "payload_size_bytes": 2048,
-    "last_retry_at": "2026-01-31T10:00:00Z",
+    "migration_stage": "post_migration",
     "status": "failed"
   },
   {
@@ -25,8 +24,7 @@
     "retry_count": 3,
     "expected_version": "v3",
     "actual_version": "v2",
-    "payload_size_bytes": 1536,
-    "last_retry_at": "2026-01-31T10:15:00Z",
+    "migration_stage": "post_migration",
     "status": "failed"
   },
   {
@@ -38,10 +36,7 @@
     "failure_reason": "Connection timeout: merchant endpoint not responding",
     "target_url": "https://analytics.merchant-m.com/events/cart",
     "retry_count": 10,
-    "expected_version": "v3",
-    "actual_version": "v3",
-    "payload_size_bytes": 512,
-    "last_retry_at": "2026-01-31T04:25:00Z",
+    "migration_stage": "post_migration",
     "status": "exhausted"
   },
   {
@@ -50,13 +45,12 @@
     "merchant_id": "MERCH-G7H8I9",
     "event_type": "product.updated",
     "timestamp": "2026-01-31T08:40:00Z",
-    "failure_reason": "Payload schema mismatch: 'price' field now nested under 'pricing' object in v3",
+    "failure_reason": "Payload schema mismatch: price field now nested under pricing object in v3",
     "target_url": "https://inventory.merchant-g.com/sync/products",
     "retry_count": 2,
     "expected_version": "v3",
     "actual_version": "v2",
-    "payload_size_bytes": 4096,
-    "last_retry_at": "2026-01-31T08:50:00Z",
+    "migration_stage": "in_progress",
     "status": "pending_retry"
   },
   {
@@ -68,10 +62,31 @@
     "failure_reason": "SSL certificate verification failed: merchant using self-signed cert",
     "target_url": "https://orders.merchant-a.com/webhooks/checkout",
     "retry_count": 1,
-    "expected_version": "v3",
-    "actual_version": "v3",
-    "payload_size_bytes": 3072,
-    "last_retry_at": "2026-01-31T10:25:00Z",
+    "migration_stage": "post_migration",
+    "status": "pending_retry"
+  },
+  {
+    "failure_id": "WHF-20260131-006",
+    "webhook_id": "WH-P7Q8R9-001",
+    "merchant_id": "MERCH-P7Q8R9",
+    "event_type": "order.created",
+    "timestamp": "2026-01-31T07:15:00Z",
+    "failure_reason": "401 Unauthorized: webhook secret not configured for v3",
+    "target_url": "https://erp.merchant-p.com/webhooks",
+    "retry_count": 4,
+    "migration_stage": "in_progress",
+    "status": "failed"
+  },
+  {
+    "failure_id": "WHF-20260131-007",
+    "webhook_id": "WH-A1B2C3-002",
+    "merchant_id": "MERCH-A1B2C3",
+    "event_type": "payment.captured",
+    "timestamp": "2026-01-31T10:35:00Z",
+    "failure_reason": "HTTP 502 Bad Gateway from merchant callback URL",
+    "target_url": "https://orders.merchant-a.com/webhooks/payment",
+    "retry_count": 2,
+    "migration_stage": "post_migration",
     "status": "pending_retry"
   }
 ]

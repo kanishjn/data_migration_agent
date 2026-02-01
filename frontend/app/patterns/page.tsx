@@ -167,24 +167,7 @@ export default function PatternsPage() {
         })}
       </StaggerContainer>
 
-      {/* Pattern Timeline / Trend View */}
-      <ScrollReveal delay={0.2}>
-        <div className="rounded-lg surface-card surface-border p-5">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-base font-medium text-zinc-900 dark:text-white">Pattern Timeline</h2>
-              <p className="text-xs text-zinc-500 mt-1">Signal aggregation proving pattern existence</p>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20">
-              <Activity className="w-3.5 h-3.5 text-fuchsia-600 dark:text-fuchsia-400" />
-              <span className="text-xs text-fuchsia-600 dark:text-fuchsia-400 font-medium">Live aggregation</span>
-            </div>
-          </div>
-            <div className="chart-container">
-            <HealthTrendChart data={[]} height={300} />
-          </div>
-        </div>
-      </ScrollReveal>
+    
 
       {/* Pattern Details Table */}
       <ScrollReveal delay={0.3} className="mt-6">

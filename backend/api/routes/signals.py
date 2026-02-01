@@ -192,6 +192,84 @@ async def get_signal_stats() -> dict[str, Any]:
     }
 
 
+@router.get("/migration-stages")
+async def get_migration_stage_distribution() -> dict[str, Any]:
+    """
+    Get distribution of merchants by migration stage.
+    
+    Returns counts for each migration stage:
+    - pre_migration
+    - during_migration
+    - post_migration
+    - completed
+    """
+    event_store = get_event_store()
+    
+    # Get all recent events
+    events = event_store.get_recent(limit=5000)
+    
+    # Count unique merchants per stage
+    stage_merchants = {}
+    merchant_stages = {}  # Track latest stage per merchant
+    
+    for event in events:
+        merchant_id = event.get("merchant_id")
+        migration_stage = event.get("migration_stage")
+        
+        if merchant_id and migration_stage:
+            # Track the most recent stage for each merchant
+            timestamp = event.get("timestamp", "")
+            current = merchant_stages.get(merchant_id, {})
+            
+            if not current or timestamp > current.get("timestamp", ""):
+                merchant_stages[merchant_id] = {
+                    "stage": migration_stage,
+                    "timestamp": timestamp
+                }
+    
+    # Count merchants per stage
+    for merchant_id, info in merchant_stages.items():
+        stage = info["stage"]
+        if stage not in stage_merchants:
+            stage_merchants[stage] = []
+        stage_merchants[stage].append(merchant_id)
+    
+    # Calculate totals
+    total_merchants = len(merchant_stages)
+    distribution = {}
+    
+    # Standard stages
+    standard_stages = ["pre_migration", "during_migration", "post_migration", "completed"]
+    
+    for stage in standard_stages:
+        merchants = stage_merchants.get(stage, [])
+        count = len(merchants)
+        percentage = (count / total_merchants * 100) if total_merchants > 0 else 0
+        
+        distribution[stage] = {
+            "count": count,
+            "percentage": round(percentage, 1),
+            "merchants": merchants[:10]  # Sample of merchant IDs
+        }
+    
+    # Add any other stages found
+    for stage, merchants in stage_merchants.items():
+        if stage not in standard_stages:
+            count = len(merchants)
+            percentage = (count / total_merchants * 100) if total_merchants > 0 else 0
+            distribution[stage] = {
+                "count": count,
+                "percentage": round(percentage, 1),
+                "merchants": merchants[:10]
+            }
+    
+    return {
+        "total_merchants": total_merchants,
+        "distribution": distribution,
+        "stages": list(distribution.keys())
+    }
+
+
 def get_all_signals() -> list[dict[str, Any]]:
     """Get unprocessed events (for backward compatibility)."""
     return get_event_store().get_unprocessed(limit=500)

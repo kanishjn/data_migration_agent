@@ -74,31 +74,31 @@ def run_detect_incidents(use_llm: bool = False, dry_run: bool = True) -> dict:
         actions = decision.get("recommended_actions", [])
         signal_cluster = observation.get("summary", "Pattern detected")
 
-        incident_id = memory.record_full_incident(
+        incident_id = memory.record_incident(
             signal_cluster=signal_cluster,
             root_cause=root_cause,
             confidence=confidence,
             actions_taken=[],
-            observation=observation,
-            reasoning=reasoning,
-            event_ids=event_ids,
+            outcome=None,
+            observation=observation,  # Store full observation with patterns
+            reasoning=reasoning,       # Store full reasoning with hypotheses
         )
 
         # Store pending actions in DB
         for i, action in enumerate(actions):
             action_type = action.get("type", "unknown")
             action_id = f"ACT-{incident_id}-{i:04d}"
-            memory.add_pending_action(
+            memory.create_pending_action(
                 action_id=action_id,
                 action_type=action_type,
                 target=action.get("target", "general"),
                 content=action.get("content", ""),
+                confidence=confidence,
+                raw_payload=action,
+                incident_id=incident_id,
                 risk=action.get("risk", "medium"),
                 severity=action.get("severity"),
                 reasoning=action.get("reason", ""),
-                incident_id=incident_id,
-                confidence=confidence,
-                raw_payload=action,
             )
     # Update agent state
     detected_issues = []

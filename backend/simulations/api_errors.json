@@ -5,6 +5,7 @@
     "error_code": "PAYMENT_CALLBACK_INVALID",
     "endpoint": "/api/v3/checkout/complete",
     "merchant_id": "MERCH-A1B2C3",
+    "migration_stage": "post_migration",
     "error_message": "Payment callback URL validation failed: URL scheme must be HTTPS for headless deployments",
     "http_status": 400,
     "occurrence_count": 47,
@@ -17,6 +18,7 @@
     "error_code": "WEBHOOK_ENDPOINT_NOT_FOUND",
     "endpoint": "/api/v2/webhooks/order.created",
     "merchant_id": "MERCH-D4E5F6",
+    "migration_stage": "post_migration",
     "error_message": "Webhook endpoint deprecated. Migrate to /api/v3/webhooks/events",
     "http_status": 404,
     "occurrence_count": 156,
@@ -29,6 +31,7 @@
     "error_code": "CACHE_INVALIDATION_FAILED",
     "endpoint": "/api/v3/products/cache/purge",
     "merchant_id": "MERCH-G7H8I9",
+    "migration_stage": "in_progress",
     "error_message": "CDN cache purge timed out. Manual purge may be required.",
     "http_status": 504,
     "occurrence_count": 3,
@@ -41,7 +44,8 @@
     "error_code": "RATE_LIMIT_EXCEEDED",
     "endpoint": "/api/v3/inventory/bulk-update",
     "merchant_id": "MERCH-J1K2L3",
-    "error_message": "Rate limit exceeded: 100 requests per minute. Current: 342. Upgrade to Enterprise for higher limits.",
+    "migration_stage": "pre_migration",
+    "error_message": "Rate limit exceeded: 100 requests per minute. Current: 342.",
     "http_status": 429,
     "occurrence_count": 89,
     "first_seen": "2026-01-31T07:00:00Z",
@@ -53,7 +57,8 @@
     "error_code": "AUTH_TOKEN_VERSION_MISMATCH",
     "endpoint": "/api/v3/orders",
     "merchant_id": "MERCH-P7Q8R9",
-    "error_message": "API token generated for v2 API. Please regenerate token for v3 compatibility.",
+    "migration_stage": "in_progress",
+    "error_message": "API token generated for v2 API. Regenerate for v3.",
     "http_status": 401,
     "occurrence_count": 23,
     "first_seen": "2026-01-31T06:00:00Z",
@@ -65,7 +70,8 @@
     "error_code": "CHECKOUT_SESSION_EXPIRED",
     "endpoint": "/api/v3/checkout/sessions",
     "merchant_id": "MERCH-A1B2C3",
-    "error_message": "Checkout session expired. Headless sessions timeout after 15 minutes (was 30 minutes in hosted).",
+    "migration_stage": "post_migration",
+    "error_message": "Headless sessions timeout after 15 minutes (was 30 in hosted).",
     "http_status": 410,
     "occurrence_count": 12,
     "first_seen": "2026-01-31T09:00:00Z",
@@ -85,7 +91,7 @@
     "migration_stage": "post_migration",
     "error_code": "CHECKOUT_502",
     "timestamp": "2026-01-28T10:15:00Z",
-    "raw_text": "Customers can’t pay"
+    "raw_text": "Customers can't pay"
   },
   {
     "event_type": "checkout_failure",
@@ -96,19 +102,31 @@
     "raw_text": "Payment page crashes"
   },
   {
-    "event_type": "checkout_failure",
-    "merchant_id": "m_104",
-    "migration_stage": "post_migration",
-    "error_code": "CHECKOUT_502",
-    "timestamp": "2026-01-28T10:21:00Z",
-    "raw_text": "Checkout broken after migration"
-  },
-  {
     "event_type": "webhook_error",
     "merchant_id": "m_101",
     "migration_stage": "post_migration",
     "error_code": "WEBHOOK_404",
     "timestamp": "2026-01-28T10:25:00Z",
     "raw_text": "Webhook endpoint not found"
+  },
+  {
+    "error_code": "SCHEMA_VALIDATION_FAILED",
+    "merchant_id": "MERCH-G7H8I9",
+    "migration_stage": "in_progress",
+    "error_message": "Product payload schema mismatch: price field nested under pricing in v3",
+    "http_status": 422,
+    "occurrence_count": 45,
+    "timestamp": "2026-01-31T08:50:00Z",
+    "source": "catalog-service"
+  },
+  {
+    "error_code": "SSL_VERIFICATION_FAILED",
+    "merchant_id": "MERCH-A1B2C3",
+    "migration_stage": "post_migration",
+    "error_message": "Webhook callback SSL cert verification failed",
+    "http_status": 526,
+    "occurrence_count": 22,
+    "timestamp": "2026-01-31T10:20:00Z",
+    "source": "webhook-service"
   }
 ]

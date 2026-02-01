@@ -36,6 +36,9 @@ class MemoryManager:
             confidence REAL,
             action_taken TEXT,
             outcome TEXT,
+            observation_json TEXT,
+            reasoning_json TEXT,
+            pattern_summary TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """)
@@ -81,7 +84,9 @@ class MemoryManager:
         root_cause: str,
         confidence: float,
         actions_taken: List[Dict[str, Any]],
-        outcome: Optional[str] = None
+        outcome: Optional[str] = None,
+        observation: Optional[Dict[str, Any]] = None,
+        reasoning: Optional[Dict[str, Any]] = None
     ) -> int:
         """
         Record a new incident with its diagnosis and actions.
@@ -92,6 +97,8 @@ class MemoryManager:
             confidence: Confidence level (0.0 to 1.0)
             actions_taken: List of actions executed
             outcome: Result of the actions (optional, can be updated later)
+            observation: Full observation data with patterns
+            reasoning: Full reasoning data with hypotheses
         
         Returns:
             incident_id: The database ID of the recorded incident
@@ -101,11 +108,21 @@ class MemoryManager:
         
         # Serialize actions as JSON
         actions_json = json.dumps(actions_taken, indent=2)
+        observation_json = json.dumps(observation) if observation else None
+        reasoning_json = json.dumps(reasoning) if reasoning else None
+        
+        # Generate pattern summary from observation
+        pattern_summary = ""
+        if observation and observation.get("patterns"):
+            patterns = observation["patterns"]
+            pattern_summary = f"{len(patterns)} patterns detected: "
+            pattern_types = [p.get("pattern_type", "unknown") for p in patterns[:3]]
+            pattern_summary += ", ".join(pattern_types)
         
         cursor.execute("""
-        INSERT INTO incidents (signal_cluster, root_cause, confidence, action_taken, outcome)
-        VALUES (?, ?, ?, ?, ?)
-        """, (signal_cluster, root_cause, confidence, actions_json, outcome))
+        INSERT INTO incidents (signal_cluster, root_cause, confidence, action_taken, outcome, observation_json, reasoning_json, pattern_summary)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (signal_cluster, root_cause, confidence, actions_json, outcome, observation_json, reasoning_json, pattern_summary))
         
         incident_id = cursor.lastrowid
         conn.commit()
@@ -181,6 +198,18 @@ class MemoryManager:
             if incident.get('action_taken'):
                 try:
                     incident['action_taken'] = json.loads(incident['action_taken'])
+                except json.JSONDecodeError:
+                    pass
+            # Parse observation JSON
+            if incident.get('observation_json'):
+                try:
+                    incident['observation'] = json.loads(incident['observation_json'])
+                except json.JSONDecodeError:
+                    pass
+            # Parse reasoning JSON
+            if incident.get('reasoning_json'):
+                try:
+                    incident['reasoning'] = json.loads(incident['reasoning_json'])
                 except json.JSONDecodeError:
                     pass
             incidents.append(incident)
@@ -404,32 +433,28 @@ class MemoryManager:
         target: Optional[str] = None,
         content: Optional[str] = None,
         confidence: Optional[float] = None,
-        raw_payload: Optional[Dict[str, Any]] = None
+        raw_payload: Optional[Dict[str, Any]] = None,
+        incident_id: Optional[int] = None,
+        risk: Optional[str] = None,
+        severity: Optional[str] = None,
+        reasoning: Optional[str] = None,
     ) -> str:
         """
         Create a new pending action in the database.
-        
-        Args:
-            action_id: Unique action identifier
-            action_type: Type of action
-            target: Target of the action
-            content: Action content/description
-            confidence: Confidence level
-            raw_payload: Full raw action data
-        
+
         Returns:
             action_id
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         raw_json = json.dumps(raw_payload) if raw_payload else None
-        
+
         cursor.execute("""
         INSERT OR REPLACE INTO pending_actions
-        (action_id, action_type, target, content, confidence, raw_payload, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending')
-        """, (action_id, action_type, target, content, confidence, raw_json))
+        (action_id, incident_id, action_type, target, content, risk, severity, reasoning, confidence, raw_payload, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+        """, (action_id, incident_id, action_type, target or "general", content, risk, severity, reasoning, confidence, raw_json))
         
         conn.commit()
         conn.close()

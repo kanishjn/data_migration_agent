@@ -176,11 +176,11 @@ class ObserverAgent:
         
         for event in events:
             status = event.get("http_status", 200)
-            error_code = event.get("error_code", "")
+            error_code = event.get("error_code") or ""
             
             if status >= 500:
                 severity_map["critical"] += 1
-            elif status == 429 or "CHECKOUT" in error_code or "PAYMENT" in error_code:
+            elif status == 429 or "CHECKOUT" in str(error_code) or "PAYMENT" in str(error_code):
                 severity_map["high"] += 1
             elif status >= 400:
                 severity_map["medium"] += 1

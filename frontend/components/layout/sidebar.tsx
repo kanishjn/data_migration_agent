@@ -15,6 +15,8 @@ import {
   ChevronRight,
   Sparkles,
   GitBranch,
+  Terminal,
+  Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/lib/app-context';
@@ -22,13 +24,14 @@ import { useApp } from '@/lib/app-context';
 // Navigation mirrors the agent loop: Signals → Patterns → Reasoning → Decisions → Actions → Docs
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard, description: 'Overview' },
-  { name: 'Migration', href: '/migration', icon: GitBranch, description: 'Simulate stages' },
   { name: 'Signals', href: '/signals', icon: Radio, description: 'OBSERVE - Raw events' },
   { name: 'Patterns', href: '/patterns', icon: Eye, description: 'Observation layer' },
   { name: 'Reasoning', href: '/reasoning', icon: Brain, description: 'LLM hypotheses' },
   { name: 'Decisions', href: '/decisions', icon: Scale, description: 'Decision engine' },
   { name: 'Actions', href: '/actions', icon: ShieldCheck, description: 'Guarded actions' },
   { name: 'Docs', href: '/docs', icon: BookOpen, description: 'Known issues' },
+  { name: 'Agent Logs', href: '/logs', icon: Terminal, description: 'Live system logs' },
+  { name: 'Migration Sim', href: '/migration-sim', icon: Activity, description: 'Live simulation' },
 ];
 
 export function Sidebar() {
@@ -120,26 +123,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-      {/* Agent Status Card */}
-      {!sidebarCollapsed && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mx-3 mb-3 p-4 rounded-lg surface-subcard surface-border"
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 dark:bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 dark:bg-emerald-400"></span>
-            </span>
-            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Agent Active</span>
-          </div>
-          <p className="text-xs text-muted">
-            Monitoring 245 endpoints across 3 regions
-          </p>
-        </motion.div>
-      )}
 
       {/* Collapse Toggle */}
       <div className="p-3 border-t border-zinc-200 dark:border-zinc-800">

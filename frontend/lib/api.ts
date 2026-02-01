@@ -188,6 +188,13 @@ export const api = {
       body: JSON.stringify(events),
     }),
 
+  getMigrationStageDistribution: () =>
+    fetchApi<{
+      total_merchants: number;
+      distribution: Record<string, { count: number; percentage: number; merchants: string[] }>;
+      stages: string[];
+    }>('/api/signals/migration-stages'),
+
   // ==================== Simulations ====================
   ingestSimulation: () =>
     fetchApi<{ ingested: number }>('/simulations/ingest?data_type=all', { method: 'POST' }),

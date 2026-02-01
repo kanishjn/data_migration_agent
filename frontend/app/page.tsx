@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   AlertCircle,
   Activity,
@@ -30,6 +30,7 @@ import { ScrollReveal, StaggerContainer, StaggerItem } from '@/components/motion
 import { HealthTrendChart, MigrationProgressChart } from '@/components/charts';
 import { useApp } from '@/lib/app-context';
 import { useApiContext } from '@/lib/api-context';
+import { api } from '@/lib/api';
 import { formatRelativeTime, formatPercentage } from '@/lib/utils';
 
 export default function DashboardPage() {
@@ -37,6 +38,24 @@ export default function DashboardPage() {
   const { useApi, ingestSimulation, refresh, loading, error, healthStatus, pendingActions } = useApiContext();
   const [ingesting, setIngesting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [migrationData, setMigrationData] = useState<{
+    total_merchants: number;
+    distribution: Record<string, { count: number; percentage: number; merchants: string[] }>;
+    stages: string[];
+  } | null>(null);
+
+  // Fetch migration stage distribution on mount and refresh
+  useEffect(() => {
+    const fetchMigrationData = async () => {
+      try {
+        const data = await api.getMigrationStageDistribution();
+        setMigrationData(data);
+      } catch (err) {
+        console.error('Failed to fetch migration data:', err);
+      }
+    };
+    fetchMigrationData();
+  }, [refreshing]); // Re-fetch when refreshing changes
 
   const handleIngest = async () => {
     setIngesting(true);
@@ -51,6 +70,9 @@ export default function DashboardPage() {
     setRefreshing(true);
     try {
       await refresh();
+      // Trigger migration data refresh
+      const data = await api.getMigrationStageDistribution();
+      setMigrationData(data);
     } finally {
       setRefreshing(false);
     }
@@ -254,36 +276,52 @@ export default function DashboardPage() {
               <p className="text-xs text-zinc-500 mt-1">Merchants by migration phase</p>
             </div>
           </div>
-          <div className="flex gap-4">
+          {migrationData && migrationData.total_merchants > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {Object.entries(migrationData.distribution).map(([stage, data]) => {
+                const stageColors: Record<string, string> = {
+                  pre_migration: 'from-blue-500/15 to-blue-600/5 border-blue-500/20',
+                  during_migration: 'from-amber-500/15 to-amber-600/5 border-amber-500/20',
+                  post_migration: 'from-cyan-500/15 to-cyan-600/5 border-cyan-500/20',
+                  completed: 'from-green-500/15 to-green-600/5 border-green-500/20',
+                };
+                const colorClass = stageColors[stage] || 'from-zinc-500/15 to-zinc-600/5 border-zinc-500/20';
+                
+                return (
+                  <div 
+                    key={stage} 
+                    className={`p-4 rounded-lg bg-gradient-to-br ${colorClass} border`}
+                  >
+                    <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">
+                      {stage.replace(/_/g, ' ')}
+                    </p>
+                    <p className="text-2xl font-semibold text-zinc-900 dark:text-white">
+                      {data.count}
+                    </p>
+                    <p className="text-xs text-muted mt-1">
+                      {data.percentage}% of total
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
             <div className="flex-1 p-4 rounded-lg surface-subcard surface-border">
               <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Migration stages</p>
-              <p className="text-2xl font-semibold text-zinc-900 dark:text-white">N/A</p>
-              <p className="text-xs text-muted mt-1">Connect backend for distribution</p>
+              <p className="text-2xl font-semibold text-zinc-900 dark:text-white">
+                {migrationData === null ? 'Loading...' : 'N/A'}
+              </p>
+              <p className="text-xs text-muted mt-1">
+                {migrationData === null ? 'Fetching data...' : 'No migration data available'}
+              </p>
             </div>
-          </div>
+          )}
         </div>
       </ScrollReveal>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Health Trend Chart - Spans 2 columns */}
-        <ScrollReveal delay={0.1} className="lg:col-span-2">
-          <div className="rounded-lg surface-card surface-border p-5">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-base font-medium text-zinc-900 dark:text-white">System Health Trend</h2>
-                <p className="text-xs text-zinc-500 mt-1">Last 24 hours performance</p>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">+2.3%</span>
-              </div>
-            </div>
-            <div className="chart-container">
-              <HealthTrendChart data={[]} height={260} />
-            </div>
-          </div>
-        </ScrollReveal>
+      
 
         {/* Recent Activity Feed */}
         <ScrollReveal delay={0.2}>

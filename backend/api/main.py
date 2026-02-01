@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
-from api.routes import agent, signals, actions, incidents
+from api.routes import agent, signals, actions, incidents, logs, migration
 from api.schemas import (
     HealthResponse,
     SimulationDataType,
@@ -154,6 +154,8 @@ app.include_router(signals.router, prefix="/api")
 app.include_router(incidents.router, prefix="/api")
 app.include_router(agent.router, prefix="/api")
 app.include_router(actions.router, prefix="/api")
+app.include_router(logs.router, prefix="/api/logs", tags=["logs"])
+app.include_router(migration.router, prefix="/api/migration", tags=["migration"])
 
 
 # =============================================================================

@@ -132,8 +132,13 @@ class LLMClient:
         
         for attempt in range(self.max_retries + 1):
             try:
-                # Call the LLM
-                response_text = self._call_provider(prompt, system_instruction, **kwargs)
+                # Call the LLM with schema if provided
+                response_text = self._call_provider(
+                    prompt, 
+                    system_instruction, 
+                    response_schema=response_schema,
+                    **kwargs
+                )
                 
                 # Parse JSON from response
                 parsed_json = self._extract_json(response_text)
@@ -168,11 +173,12 @@ class LLMClient:
         self,
         prompt: str,
         system_instruction: Optional[str] = None,
+        response_schema: Optional[Type[BaseModel]] = None,
         **kwargs
     ) -> str:
         """Call the actual LLM provider."""
         if self.provider == LLMProvider.GEMINI:
-            return self._call_gemini(prompt, system_instruction, **kwargs)
+            return self._call_gemini(prompt, system_instruction, response_schema, **kwargs)
         else:
             raise NotImplementedError(f"Provider {self.provider} not implemented")
     
@@ -180,9 +186,10 @@ class LLMClient:
         self,
         prompt: str,
         system_instruction: Optional[str] = None,
+        response_schema: Optional[Type[BaseModel]] = None,
         **kwargs
     ) -> str:
-        """Call Google Gemini API."""
+        """Call Google Gemini API with optional structured output schema."""
         if not self.client:
             raise RuntimeError("Gemini client not initialized. Check API key.")
         
@@ -191,8 +198,33 @@ class LLMClient:
             "top_p": kwargs.get("top_p", 0.95),
             "top_k": kwargs.get("top_k", 40),
             "max_output_tokens": kwargs.get("max_output_tokens", 2048),
-            "response_mime_type": "application/json"  # Force valid JSON output
         }
+        
+        # Use native response_schema if Pydantic model is provided
+        # This forces Gemini to return valid JSON matching the schema
+        if response_schema:
+            try:
+                # Convert Pydantic model to Gemini's schema format
+                schema_dict = response_schema.model_json_schema()
+                
+                # Gemini doesn't support $defs or $ref - need to inline all definitions
+                # Remove $defs and resolve references
+                if "$defs" in schema_dict:
+                    defs = schema_dict.pop("$defs")
+                    schema_dict = self._resolve_schema_refs(schema_dict, defs)
+                
+                # Clean schema to remove unsupported fields (title, etc)
+                schema_dict = self._clean_schema_for_gemini(schema_dict)
+                
+                generation_config["response_mime_type"] = "application/json"
+                generation_config["response_schema"] = schema_dict
+                
+                tool_logger.debug(f"Using Gemini response_schema: {json.dumps(schema_dict, indent=2)[:300]}...")
+            except Exception as e:
+                tool_logger.warning(f"Could not set response_schema: {e}. Using mime type only.")
+                generation_config["response_mime_type"] = "application/json"
+        else:
+            generation_config["response_mime_type"] = "application/json"  # Force valid JSON output
         
         # Build full prompt with system instruction
         if system_instruction:
@@ -213,32 +245,116 @@ class LLMClient:
         
         return response.text
     
+    def _resolve_schema_refs(self, schema: Dict[str, Any], defs: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Resolve $ref references in a JSON schema by inlining definitions.
+        Gemini doesn't support $ref, so we need to expand them.
+        """
+        if isinstance(schema, dict):
+            if "$ref" in schema:
+                # Extract the definition name from "#/$defs/DefinitionName"
+                ref_path = schema["$ref"]
+                if ref_path.startswith("#/$defs/"):
+                    def_name = ref_path.split("/")[-1]
+                    if def_name in defs:
+                        # Replace the $ref with the actual definition (recursively resolve it too)
+                        resolved = self._resolve_schema_refs(defs[def_name].copy(), defs)
+                        return resolved
+                return schema
+            else:
+                # Recursively resolve refs in nested objects
+                return {k: self._resolve_schema_refs(v, defs) for k, v in schema.items()}
+        elif isinstance(schema, list):
+            return [self._resolve_schema_refs(item, defs) for item in schema]
+        else:
+            return schema
+    
+    def _clean_schema_for_gemini(self, schema: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Remove fields that Gemini doesn't support.
+        Gemini supports: type, properties, required, items, enum, description.
+        Does NOT support: anyOf, allOf, oneOf, $ref, title, additionalProperties, etc.
+        
+        For anyOf, we'll just use the first option (usually the most permissive).
+        For objects with additionalProperties but no properties, don't include properties key.
+        """
+        if isinstance(schema, dict):
+            # Handle anyOf by taking the first option
+            if "anyOf" in schema:
+                # Take the first option and continue cleaning it
+                first_option = schema["anyOf"][0] if schema["anyOf"] else {}
+                return self._clean_schema_for_gemini(first_option)
+            
+            # Fields to keep
+            allowed_fields = {"type", "properties", "required", "items", "enum", "description"}
+            
+            # Clean this level
+            cleaned = {}
+            for key, value in schema.items():
+                if key in allowed_fields:
+                    if key == "properties" and isinstance(value, dict):
+                        # Special handling for properties - keep all property definitions
+                        cleaned_props = {
+                            prop_name: self._clean_schema_for_gemini(prop_value)
+                            for prop_name, prop_value in value.items()
+                        }
+                        # Only include properties if non-empty
+                        if cleaned_props:
+                            cleaned[key] = cleaned_props
+                    else:
+                        # Recursively clean nested schemas
+                        cleaned[key] = self._clean_schema_for_gemini(value)
+            
+            # Handle objects with no properties (like additionalProperties=true)
+            # Gemini needs either properties or no properties key at all
+            if cleaned.get("type") == "object" and "properties" in cleaned and not cleaned["properties"]:
+                # Remove empty properties for generic objects
+                del cleaned["properties"]
+                if "required" in cleaned:
+                    del cleaned["required"]  # Can't require fields if no properties defined
+            
+            return cleaned
+        elif isinstance(schema, list):
+            return [self._clean_schema_for_gemini(item) for item in schema]
+        else:
+            return schema
+    
     def _extract_json(self, text: str) -> Dict[str, Any]:
         """
         Extract JSON from LLM response.
-        Handles cases where JSON is wrapped in markdown code blocks.
+        Handles cases where JSON is wrapped in markdown code blocks or has malformed strings.
         """
         text = text.strip()
         
         # Try direct JSON parse first
         try:
             return json.loads(text)
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            tool_logger.debug(f"Direct JSON parse failed: {e}. Trying alternative methods...")
         
         # Look for JSON in markdown code blocks
         if "```json" in text:
             start = text.find("```json") + 7
             end = text.find("```", start)
             json_str = text[start:end].strip()
-            return json.loads(json_str)
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError:
+                pass
         
         # Look for any code block
         if "```" in text:
             start = text.find("```") + 3
+            # Skip language identifier if present
+            newline = text.find("\n", start)
+            if newline != -1 and newline < start + 20:
+                start = newline + 1
             end = text.find("```", start)
             json_str = text[start:end].strip()
-            return json.loads(json_str)
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError:
+                pass
         
         # Try to find JSON object boundaries
         start = text.find("{")
@@ -246,10 +362,24 @@ class LLMClient:
         
         if start != -1 and end > start:
             json_str = text[start:end]
-            return json.loads(json_str)
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError as e:
+                # Try to fix common JSON issues
+                tool_logger.debug(f"JSON parsing failed at position {e.pos}: {e.msg}")
+                # Attempt to fix unterminated strings by finding and escaping quotes
+                try:
+                    # Simple fix: replace unescaped newlines in strings
+                    import re
+                    # This is a heuristic fix - may not work for all cases
+                    fixed_json = re.sub(r'(?<!\\)\\n', '\\\\n', json_str)
+                    fixed_json = re.sub(r'(?<!\\)\\t', '\\\\t', fixed_json)
+                    return json.loads(fixed_json)
+                except:
+                    pass
         
         # Last resort: try parsing the whole thing
-        return json.loads(text)
+        raise json.JSONDecodeError(f"Could not extract valid JSON from response", text, 0)
     
     def get_usage_stats(self) -> Dict[str, Any]:
         """Get token usage statistics."""

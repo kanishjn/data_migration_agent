@@ -256,11 +256,41 @@ class ActionAgent:
                 severity=priority
             )
         
+        # Also send email notification for P0/P1 escalations
+        email_result = None
+        if priority_str in ["P0", "P1"] and self.escalation_tool and self.escalation_tool.email_configured:
+            email_body = f"""
+MIGRATION AGENT - {priority_str} ESCALATION
+
+Issue: {action.get('reason', 'Issue Detected')}
+Priority: {priority_str}
+Jira Ticket: {jira_result.get('jira_id', 'N/A')}
+
+Root Cause Analysis:
+{action.get('details', {}).get('root_cause', 'Under investigation')}
+
+Affected Merchants: {action.get('details', {}).get('affected_merchants', 'Unknown')}
+Confidence: {action.get('details', {}).get('confidence', 'N/A')}
+
+Action Required: Please review and take appropriate action.
+
+---
+This is an automated notification from Migration Agent.
+            """.strip()
+            
+            email_result = self.escalation_tool.send_email_notification(
+                to=["accsecondary610@gmail.com"],  # Default notification email
+                subject=f"[{priority_str}] {action.get('reason', 'Migration Issue')}",
+                body=email_body,
+                priority=priority
+            )
+        
         return {
             "action_type": "engineering_escalation",
             "success": True,
             "jira_ticket": jira_result,
             "slack_alert": slack_result,
+            "email_notification": email_result,
             "priority": priority_str,
             "timestamp": datetime.utcnow().isoformat()
         }

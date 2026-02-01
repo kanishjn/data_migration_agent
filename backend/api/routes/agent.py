@@ -32,6 +32,145 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 
 
 # =============================================================================
+# Demo / Testing Endpoints
+# =============================================================================
+
+@router.post("/run-demo")
+async def run_comprehensive_demo(
+    use_llm: bool = False,
+    auto_approve: bool = False
+) -> dict[str, Any]:
+    """
+    Run a comprehensive demo that generates diverse signals and processes them
+    through the full agent pipeline.
+    
+    This endpoint:
+    1. Generates diverse signals (checkout failures, webhooks, API errors, tickets)
+    2. Ingests them into the database
+    3. Runs the agent orchestrator (observe → reason → decide → act)
+    4. Creates incidents and pending actions
+    5. Returns a summary of all operations
+    
+    Args:
+        use_llm: Use LLM for reasoning (requires GOOGLE_API_KEY)
+        auto_approve: Auto-approve actions (skip human approval)
+    
+    Returns:
+        Complete demo execution summary
+    """
+    from orchestrator.agent_orchestrator import AgentOrchestrator
+    from memory.event_store import EventStore
+    from memory.memory_manager import MemoryManager
+    import random
+    from datetime import timedelta
+    
+    api_logger.info("🚀 Starting comprehensive demo...")
+    
+    # Generate diverse signals
+    signals = []
+    base_time = datetime.utcnow()
+    
+    # Checkout failures
+    for i in range(10):
+        signals.append({
+            "event_type": "checkout_failure",
+            "merchant_id": f"m_merchant_{i % 3}",
+            "migration_stage": "post_migration",
+            "error_code": random.choice(["CHECKOUT_502", "PAYMENT_DECLINED", "SESSION_EXPIRED"]),
+            "timestamp": (base_time - timedelta(minutes=random.randint(5, 60))).isoformat() + "Z",
+            "raw_text": "Checkout failed",
+        })
+    
+    # Webhook failures
+    for i in range(8):
+        signals.append({
+            "event_type": "webhook_failure",
+            "merchant_id": f"m_merchant_{i % 3}",
+            "migration_stage": "post_migration",
+            "webhook_event": random.choice(["order.created", "product.updated"]),
+            "failure_reason": "Endpoint timeout",
+            "timestamp": (base_time - timedelta(minutes=random.randint(10, 120))).isoformat() + "Z",
+            "raw_text": "Webhook delivery failed",
+        })
+    
+    # API errors
+    for i in range(15):
+        signals.append({
+            "event_type": "api_error",
+            "merchant_id": f"m_merchant_{i % 4}",
+            "migration_stage": "post_migration",
+            "error_code": random.choice(["API_500", "API_502", "API_TIMEOUT"]),
+            "endpoint": random.choice(["/v3/orders", "/v3/products", "/v3/checkout"]),
+            "timestamp": (base_time - timedelta(minutes=random.randint(1, 180))).isoformat() + "Z",
+            "raw_text": "API error occurred",
+        })
+    
+    # Ingest to database
+    event_store = EventStore()
+    event_ids = event_store.save_batch(signals)
+    api_logger.info(f"✅ Ingested {len(event_ids)} signals")
+    
+    # Run agent pipeline
+    orchestrator = AgentOrchestrator(dry_run=False, use_llm=use_llm)
+    result = orchestrator.run(signals, auto_approve=auto_approve)
+    
+    # Create incident
+    memory = MemoryManager()
+    patterns = result["observation"].get("patterns", [])
+    
+    incident_id = None
+    if patterns:
+        incident_data = {
+            "signal_cluster": patterns[0].get("cluster_key", "demo_cluster"),
+            "pattern_summary": patterns[0].get("summary", "Demo pattern"),
+            "root_cause": result["reasoning"].get("primary_hypothesis", {}).get("cause", "Demo root cause"),
+            "confidence": result["reasoning"].get("primary_hypothesis", {}).get("confidence", 0.7),
+            "reasoning": result["reasoning"],
+            "action_taken": result["decision"].get("recommended_actions", []),
+            "outcome": "pending",
+        }
+        incident_id = memory.create_incident(incident_data)
+        api_logger.info(f"📋 Created incident #{incident_id}")
+    
+    # Create pending actions
+    action_ids = []
+    for action in result["decision"].get("recommended_actions", []):
+        action_data = {
+            "incident_id": incident_id,
+            "action_type": action.get("action_type", "notify"),
+            "target": action.get("target", ""),
+            "payload": action,
+            "risk_level": action.get("risk_level", "medium"),
+            "confidence": action.get("confidence", 0.7),
+            "status": "pending",
+            "requires_approval": True,
+        }
+        action_id = memory.create_pending_action(action_data)
+        action_ids.append(action_id)
+    
+    api_logger.info(f"⚡ Created {len(action_ids)} pending actions")
+    
+    return {
+        "success": True,
+        "summary": {
+            "signals_generated": len(signals),
+            "events_ingested": len(event_ids),
+            "patterns_detected": len(patterns),
+            "incident_created": incident_id,
+            "actions_created": len(action_ids),
+            "confidence": result["reasoning"].get("primary_hypothesis", {}).get("confidence", 0),
+        },
+        "result": {
+            "observation": result["observation"],
+            "reasoning": result["reasoning"],
+            "decision": result["decision"],
+            "execution": result["execution"],
+        },
+        "message": "Demo completed successfully. Check the frontend to see all populated data!"
+    }
+
+
+# =============================================================================
 # Agent State Storage
 # =============================================================================
 # This is a placeholder for agent state that will be populated by agent modules.

@@ -1,83 +1,5 @@
 [
   {
-    "error_id": "ERR-20260131-001",
-    "timestamp": "2026-01-31T10:14:32Z",
-    "error_code": "PAYMENT_CALLBACK_INVALID",
-    "endpoint": "/api/v3/checkout/complete",
-    "merchant_id": "MERCH-A1B2C3",
-    "migration_stage": "post_migration",
-    "error_message": "Payment callback URL validation failed: URL scheme must be HTTPS for headless deployments",
-    "http_status": 400,
-    "occurrence_count": 47,
-    "first_seen": "2026-01-31T08:00:00Z",
-    "source": "checkout-service"
-  },
-  {
-    "error_id": "ERR-20260131-002",
-    "timestamp": "2026-01-31T09:28:15Z",
-    "error_code": "WEBHOOK_ENDPOINT_NOT_FOUND",
-    "endpoint": "/api/v2/webhooks/order.created",
-    "merchant_id": "MERCH-D4E5F6",
-    "migration_stage": "post_migration",
-    "error_message": "Webhook endpoint deprecated. Migrate to /api/v3/webhooks/events",
-    "http_status": 404,
-    "occurrence_count": 156,
-    "first_seen": "2026-01-30T14:00:00Z",
-    "source": "webhook-service"
-  },
-  {
-    "error_id": "ERR-20260131-003",
-    "timestamp": "2026-01-31T08:42:00Z",
-    "error_code": "CACHE_INVALIDATION_FAILED",
-    "endpoint": "/api/v3/products/cache/purge",
-    "merchant_id": "MERCH-G7H8I9",
-    "migration_stage": "fully_migrated",
-    "error_message": "CDN cache purge timed out. Manual purge may be required.",
-    "http_status": 504,
-    "occurrence_count": 3,
-    "first_seen": "2026-01-31T08:30:00Z",
-    "source": "catalog-service"
-  },
-  {
-    "error_id": "ERR-20260131-004",
-    "timestamp": "2026-01-31T07:18:45Z",
-    "error_code": "RATE_LIMIT_EXCEEDED",
-    "endpoint": "/api/v3/inventory/bulk-update",
-    "merchant_id": "MERCH-J1K2L3",
-    "migration_stage": "post_migration",
-    "error_message": "Rate limit exceeded: 100 requests per minute. Current: 342. Upgrade to Enterprise for higher limits.",
-    "http_status": 429,
-    "occurrence_count": 89,
-    "first_seen": "2026-01-31T07:00:00Z",
-    "source": "inventory-service"
-  },
-  {
-    "error_id": "ERR-20260131-005",
-    "timestamp": "2026-01-31T06:55:00Z",
-    "error_code": "AUTH_TOKEN_VERSION_MISMATCH",
-    "endpoint": "/api/v3/orders",
-    "merchant_id": "MERCH-P7Q8R9",
-    "migration_stage": "post_migration",
-    "error_message": "API token generated for v2 API. Please regenerate token for v3 compatibility.",
-    "http_status": 401,
-    "occurrence_count": 23,
-    "first_seen": "2026-01-31T06:00:00Z",
-    "source": "auth-service"
-  },
-  {
-    "error_id": "ERR-20260131-006",
-    "timestamp": "2026-01-31T10:30:00Z",
-    "error_code": "CHECKOUT_SESSION_EXPIRED",
-    "endpoint": "/api/v3/checkout/sessions",
-    "merchant_id": "MERCH-A1B2C3",
-    "migration_stage": "post_migration",
-    "error_message": "Checkout session expired. Headless sessions timeout after 15 minutes (was 30 minutes in hosted).",
-    "http_status": 410,
-    "occurrence_count": 12,
-    "first_seen": "2026-01-31T09:00:00Z",
-    "source": "checkout-service"
-  },
-  {
     "error_id": "ERR-20260131-007",
     "timestamp": "2026-01-31T10:45:00Z",
     "error_code": "PAYMENT_CALLBACK_INVALID",
@@ -101,6 +23,32 @@
     "http_status": 400,
     "occurrence_count": 18,
     "first_seen": "2026-01-31T10:00:00Z",
+    "source": "checkout-service"
+  },
+  {
+    "error_id": "ERR-20260131-009",
+    "timestamp": "2026-01-31T11:00:00Z",
+    "error_code": "WEBHOOK_ENDPOINT_NOT_FOUND",
+    "endpoint": "/api/v2/webhooks/order.created",
+    "merchant_id": "MERCH-M4N5O6",
+    "migration_stage": "post_migration",
+    "error_message": "Webhook v2 endpoint deprecated. Migrate to v3.",
+    "http_status": 404,
+    "occurrence_count": 67,
+    "first_seen": "2026-01-30T08:00:00Z",
+    "source": "webhook-service"
+  },
+  {
+    "error_id": "ERR-20260131-010",
+    "timestamp": "2026-01-31T09:00:00Z",
+    "error_code": "CHECKOUT_SESSION_EXPIRED",
+    "endpoint": "/api/v3/checkout/sessions",
+    "merchant_id": "MERCH-D4E5F6",
+    "migration_stage": "post_migration",
+    "error_message": "Session timeout 15min (was 30min in hosted).",
+    "http_status": 410,
+    "occurrence_count": 34,
+    "first_seen": "2026-01-31T08:00:00Z",
     "source": "checkout-service"
   }
 ]
