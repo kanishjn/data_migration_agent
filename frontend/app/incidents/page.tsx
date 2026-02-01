@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, Clock, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Search, Filter, Clock, ArrowRight, AlertTriangle, RefreshCw, Wifi } from 'lucide-react';
 import { MainContent, PageHeader } from '@/components/layout';
 import { GlassCard, SeverityBadge, StatusBadge, Button } from '@/components/ui';
 import { ScrollReveal, StaggerContainer, StaggerItem } from '@/components/motion';
 import { useApp } from '@/lib/app-context';
+import { useApiContext } from '@/lib/api-context';
 import { formatRelativeTime, cn } from '@/lib/utils';
 import type { Severity, IncidentStatus } from '@/types';
 
@@ -16,6 +17,7 @@ const statusFilters: (IncidentStatus | 'all')[] = ['all', 'active', 'investigati
 
 export default function IncidentsPage() {
   const { incidents } = useApp();
+  const { useApi, loading, refresh } = useApiContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [severityFilter, setSeverityFilter] = useState<Severity | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | 'all'>('all');
@@ -37,6 +39,29 @@ export default function IncidentsPage() {
           description="Monitor and manage all system incidents. Click on an incident to view details and take action."
         />
       </ScrollReveal>
+
+      {useApi && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <Wifi className="w-4 h-4 text-emerald-500" />
+            <span className="text-sm text-emerald-700 dark:text-emerald-400">
+              Connected to backend • {incidents.length} incidents from agent pipeline
+            </span>
+          </div>
+          <button
+            onClick={() => refresh()}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-medium disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </motion.div>
+      )}
 
       {/* Filters */}
       <ScrollReveal delay={0.1}>

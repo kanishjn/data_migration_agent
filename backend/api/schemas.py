@@ -175,6 +175,14 @@ class ActionApprovalRequest(BaseModel):
     feedback: Optional[str] = Field(None, description="Optional feedback for agent learning")
 
 
+class ActionApproveBody(BaseModel):
+    """Request body for POST /actions/{action_id}/approve."""
+    approved: bool = True
+    reviewer: str = Field("api", description="Identifier of the reviewer")
+    feedback: Optional[str] = Field(None, description="Optional feedback")
+    execute_if_approved: bool = Field(True, description="Execute action when approved")
+
+
 class ActionApprovalResponse(BaseModel):
     """Response for POST /actions/approve."""
     action_id: str
@@ -225,3 +233,15 @@ class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+# =============================================================================
+# Incident Feedback Schemas
+# =============================================================================
+
+class IncidentFeedbackRequest(BaseModel):
+    """Request body for POST /incidents/{id}/feedback."""
+    feedback_type: str = Field(..., description="correct, wrong_cause, or partial")
+    corrected_cause: Optional[str] = Field(None, description="Correct root cause if wrong_cause/partial")
+    reviewer: str = Field("api", description="Identifier of the reviewer")
+    notes: Optional[str] = Field(None, description="Additional notes")

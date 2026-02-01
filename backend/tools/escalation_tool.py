@@ -1,8 +1,9 @@
 """
-Escalation Tool - Simulated escalation interface.
+Escalation Tool - Mixed simulation and real integrations.
 
-This tool simulates creating Jira tickets, sending Slack alerts,
-and email notifications. It does NOT connect to any real systems.
+This tool:
+- SIMULATES: Jira tickets, Slack alerts (for demo/testing)
+- REAL: Email notifications (SMTP), PagerDuty alerts (Events API)
 
 All escalation actions are logged for audit and demonstration.
 """
@@ -12,11 +13,20 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 import uuid
+import os
+import smtplib
+import requests
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from dotenv import load_dotenv
 
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
 from utils.logger import log_tool_action, tool_logger
+
+# Load environment variables
+load_dotenv()
 
 
 class EscalationChannel(str, Enum):
@@ -37,24 +47,46 @@ class EscalationPriority(str, Enum):
 
 class EscalationTool:
     """
-    Simulated escalation interface.
+    Mixed escalation interface (simulation + real integrations).
     
     Capabilities:
-    - Create Jira tickets (simulated)
-    - Send Slack alerts (simulated)
-    - Send email notifications (simulated)
-    - Trigger PagerDuty alerts (simulated)
+    - Create Jira tickets (SIMULATED - no real Jira integration)
+    - Send Slack alerts (SIMULATED - no real Slack integration)
+    - Send email notifications (REAL - uses SMTP)
+    - Trigger PagerDuty alerts (REAL - uses Events API v2)
     
-    Limitations:
-    - No real integrations with any external system
-    - All actions are logged but not executed
-    - For demonstration and agent training purposes only
+    Configuration:
+    - Email: Requires SMTP_* environment variables
+    - PagerDuty: Requires PAGERDUTY_ROUTING_KEY environment variable
     """
     
     def __init__(self):
-        # In-memory log of simulated escalations
+        # In-memory log of all escalations (simulated and real)
         self._escalation_log: list[dict] = []
-        tool_logger.info("EscalationTool initialized (simulation mode)")
+        
+        # Load email configuration
+        self.smtp_host = os.getenv("SMTP_HOST")
+        self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        self.smtp_username = os.getenv("SMTP_USERNAME")
+        self.smtp_password = os.getenv("SMTP_PASSWORD")
+        self.smtp_from_email = os.getenv("SMTP_FROM_EMAIL")
+        self.smtp_from_name = os.getenv("SMTP_FROM_NAME", "Migration Agent")
+        
+        # Load PagerDuty configuration
+        self.pagerduty_routing_key = os.getenv("PAGERDUTY_ROUTING_KEY")
+        
+        # Check which integrations are configured
+        self.email_configured = all([
+            self.smtp_host, self.smtp_username, 
+            self.smtp_password, self.smtp_from_email
+        ])
+        self.pagerduty_configured = bool(self.pagerduty_routing_key)
+        
+        tool_logger.info(
+            f"EscalationTool initialized - "
+            f"Email: {'configured' if self.email_configured else 'NOT configured'}, "
+            f"PagerDuty: {'configured' if self.pagerduty_configured else 'NOT configured'}"
+        )
     
     def create_jira_ticket(
         self,
@@ -173,22 +205,25 @@ class EscalationTool:
         subject: str,
         body: str,
         cc: Optional[list[str]] = None,
-        priority: EscalationPriority = EscalationPriority.MEDIUM
+        priority: EscalationPriority = EscalationPriority.MEDIUM,
+        html: bool = False
     ) -> dict:
         """
-        Simulate sending an email notification.
+        Send a REAL email notification via SMTP.
         
-        NOTE: This is a SIMULATION. No real email is sent.
+        This actually sends emails! Requires SMTP configuration in .env.
+        Falls back to simulation if email is not configured.
         
         Args:
             to: List of recipient email addresses
             subject: Email subject
-            body: Email body content
+            body: Email body content (plain text or HTML)
             cc: CC recipients
             priority: Email priority flag
+            html: Whether body is HTML (default: plain text)
             
         Returns:
-            Simulated email response
+            Email send result
         """
         fake_message_id = f"<{uuid.uuid4().hex}@migration-agent.local>"
         
@@ -201,22 +236,91 @@ class EscalationTool:
             "body_preview": body[:200] + "..." if len(body) > 200 else body,
             "priority": priority,
             "created_at": datetime.utcnow().isoformat(),
-            "simulated": True
+            "simulated": not self.email_configured
         }
         
+        # Try to send real email if configured
+        if self.email_configured:
+            try:
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = subject
+                msg['From'] = f"{self.smtp_from_name} <{self.smtp_from_email}>"
+                msg['To'] = ', '.join(to)
+                if cc:
+                    msg['Cc'] = ', '.join(cc)
+                
+                # Set priority header
+                if priority == EscalationPriority.CRITICAL:
+                    msg['X-Priority'] = '1'
+                    msg['Importance'] = 'high'
+                elif priority == EscalationPriority.HIGH:
+                    msg['X-Priority'] = '2'
+                    msg['Importance'] = 'high'
+                
+                # Attach body
+                mime_type = 'html' if html else 'plain'
+                msg.attach(MIMEText(body, mime_type))
+                
+                # Send via SMTP
+                with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                    server.starttls()
+                    server.login(self.smtp_username, self.smtp_password)
+                    recipients = to + (cc or [])
+                    server.send_message(msg, self.smtp_from_email, recipients)
+                
+                escalation["simulated"] = False
+                escalation["sent_successfully"] = True
+                
+                self._escalation_log.append(escalation)
+                
+                log_tool_action("escalation_tool", "send_email", {
+                    "to": to,
+                    "subject": subject,
+                    "priority": priority,
+                    "note": "REAL EMAIL SENT via SMTP"
+                })
+                
+                tool_logger.info(f"✅ Real email sent to {to}: {subject}")
+                
+                return {
+                    "success": True,
+                    "message_id": fake_message_id,
+                    "message": "Email sent successfully via SMTP",
+                    "real": True,
+                    "data": escalation
+                }
+                
+            except Exception as e:
+                tool_logger.error(f"Failed to send real email: {e}")
+                escalation["error"] = str(e)
+                escalation["sent_successfully"] = False
+                self._escalation_log.append(escalation)
+                
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "message": f"Failed to send email: {e}",
+                    "real": True,
+                    "data": escalation
+                }
+        
+        # Fallback to simulation if not configured
         self._escalation_log.append(escalation)
         
         log_tool_action("escalation_tool", "send_email", {
             "to": to,
             "subject": subject,
             "priority": priority,
-            "note": "SIMULATED - No real email sent"
+            "note": "SIMULATED - Email not configured"
         })
+        
+        tool_logger.warning(f"⚠️ Email SIMULATED (not configured): {subject}")
         
         return {
             "success": True,
             "message_id": fake_message_id,
-            "message": "SIMULATED: Email would be sent with this data",
+            "message": "SIMULATED: Email not configured. Set SMTP_* environment variables.",
+            "real": False,
             "data": escalation
         }
     
@@ -228,45 +332,124 @@ class EscalationTool:
         severity: EscalationPriority = EscalationPriority.HIGH
     ) -> dict:
         """
-        Simulate triggering a PagerDuty alert.
+        Trigger a REAL PagerDuty alert via Events API v2.
         
-        NOTE: This is a SIMULATION. No real PagerDuty alert is triggered.
+        This actually creates PagerDuty incidents! Requires PAGERDUTY_ROUTING_KEY in .env.
+        Falls back to simulation if PagerDuty is not configured.
         
         Args:
-            service: PagerDuty service name
-            title: Alert title
-            details: Alert details dict
-            severity: Alert severity
+            service: PagerDuty service name (for logging)
+            title: Alert title (event summary)
+            details: Alert details dict (custom_details)
+            severity: Alert severity (mapped to PagerDuty severity)
             
         Returns:
-            Simulated PagerDuty response
+            PagerDuty trigger result
         """
         fake_incident_id = f"PD-{uuid.uuid4().hex[:8].upper()}"
+        dedup_key = f"migration-agent-{uuid.uuid4().hex[:12]}"
         
         escalation = {
             "channel": EscalationChannel.PAGERDUTY,
             "incident_id": fake_incident_id,
+            "dedup_key": dedup_key,
             "service": service,
             "title": title,
             "details": details,
             "severity": severity,
             "created_at": datetime.utcnow().isoformat(),
-            "simulated": True
+            "simulated": not self.pagerduty_configured
         }
         
+        # Try to send real PagerDuty alert if configured
+        if self.pagerduty_configured:
+            try:
+                # Map our severity to PagerDuty severity
+                pd_severity_map = {
+                    EscalationPriority.LOW: "info",
+                    EscalationPriority.MEDIUM: "warning",
+                    EscalationPriority.HIGH: "error",
+                    EscalationPriority.CRITICAL: "critical"
+                }
+                
+                payload = {
+                    "routing_key": self.pagerduty_routing_key,
+                    "event_action": "trigger",
+                    "dedup_key": dedup_key,
+                    "payload": {
+                        "summary": title,
+                        "severity": pd_severity_map.get(severity, "error"),
+                        "source": "migration-agent",
+                        "custom_details": details
+                    }
+                }
+                
+                response = requests.post(
+                    "https://events.pagerduty.com/v2/enqueue",
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                    timeout=10
+                )
+                
+                response.raise_for_status()
+                result = response.json()
+                
+                escalation["simulated"] = False
+                escalation["sent_successfully"] = True
+                escalation["pd_dedup_key"] = result.get("dedup_key", dedup_key)
+                
+                self._escalation_log.append(escalation)
+                
+                log_tool_action("escalation_tool", "trigger_pagerduty", {
+                    "incident_id": fake_incident_id,
+                    "service": service,
+                    "severity": severity,
+                    "dedup_key": dedup_key,
+                    "note": "REAL PAGERDUTY ALERT SENT"
+                })
+                
+                tool_logger.info(f"✅ Real PagerDuty alert triggered: {title}")
+                
+                return {
+                    "success": True,
+                    "incident_id": fake_incident_id,
+                    "dedup_key": dedup_key,
+                    "message": "PagerDuty alert triggered successfully",
+                    "real": True,
+                    "data": escalation
+                }
+                
+            except Exception as e:
+                tool_logger.error(f"Failed to trigger real PagerDuty alert: {e}")
+                escalation["error"] = str(e)
+                escalation["sent_successfully"] = False
+                self._escalation_log.append(escalation)
+                
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "message": f"Failed to trigger PagerDuty alert: {e}",
+                    "real": True,
+                    "data": escalation
+                }
+        
+        # Fallback to simulation if not configured
         self._escalation_log.append(escalation)
         
         log_tool_action("escalation_tool", "trigger_pagerduty", {
             "incident_id": fake_incident_id,
             "service": service,
             "severity": severity,
-            "note": "SIMULATED - No real PagerDuty alert triggered"
+            "note": "SIMULATED - PagerDuty not configured"
         })
+        
+        tool_logger.warning(f"⚠️ PagerDuty SIMULATED (not configured): {title}")
         
         return {
             "success": True,
             "incident_id": fake_incident_id,
-            "message": "SIMULATED: PagerDuty alert would be triggered with this data",
+            "message": "SIMULATED: PagerDuty not configured. Set PAGERDUTY_ROUTING_KEY environment variable.",
+            "real": False,
             "data": escalation
         }
     

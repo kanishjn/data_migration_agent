@@ -15,12 +15,20 @@ import {
 import { MainContent, PageHeader } from '@/components/layout';
 import { GlassCard, ConfidenceMeter, Button, CollapsibleSection } from '@/components/ui';
 import { ScrollReveal } from '@/components/motion';
-import { mockSupportResponse } from '@/lib/mock-data';
+import { useApiContext } from '@/lib/api-context';
 
 export default function CopilotPage() {
   const [copied, setCopied] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const { useApi, incidents } = useApiContext();
+  const mockSupportResponse = {
+    suggestedResponse: 'No suggestion available. Connect to backend to generate responses.',
+    confidence: 0,
+    explanation: 'Connect to backend to generate contextual responses.',
+    sources: [],
+  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(mockSupportResponse.suggestedResponse);

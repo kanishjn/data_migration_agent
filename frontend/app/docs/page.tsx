@@ -21,7 +21,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MainContent, PageHeader } from '@/components/layout';
 import { ScrollReveal, StaggerContainer, StaggerItem } from '@/components/motion';
-import { mockKnownIssues, mockSuggestedDocUpdates } from '@/lib/mock-data';
+import { useApiContext } from '@/lib/api-context';
 import { formatRelativeTime } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
@@ -52,9 +52,43 @@ export default function DocsPage() {
     low: { color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
   };
 
+  const { patterns = [], useApi } = useApiContext();
+
+  // For now, known issues and suggested updates come from patterns or agent outputs; fall back to empty arrays
+  const knownIssues = useApi
+    ? patterns.map((p: any) => ({
+        id: p.id,
+        title: p.common_error || `Pattern ${p.id}`,
+        description: p.time_window || '',
+        status: 'active',
+        severity: 'medium',
+        created_at: p.created_at,
+        affected_merchants: p.affected_merchants || 0,
+        root_cause: p.common_error || '',
+        resolution: '',
+        related_signals: p.signals || [],
+      }))
+    : [];
+
+  const suggestedUpdates: Array<{ id: string } & Record<string, unknown>> = [];
+
+  // Define a lightweight SuggestedUpdate type for rendering
+  type SuggestedUpdate = {
+    id: string;
+    title?: string;
+    summary?: string;
+    status?: 'pending' | 'approved' | 'rejected' | string;
+    created_at?: string;
+    target_doc?: string;
+    suggested_content?: string;
+    source_context?: string;
+    related_action_id?: string;
+  };
+  const suggestedUpdatesTyped: SuggestedUpdate[] = suggestedUpdates as SuggestedUpdate[];
+
   // Stats
-  const activeIssuesCount = mockKnownIssues.filter((i) => i.status === 'active').length;
-  const pendingUpdatesCount = mockSuggestedDocUpdates.filter((u) => u.status === 'pending').length;
+  const activeIssuesCount = knownIssues.filter((i) => i.status === 'active').length;
+  const pendingUpdatesCount = suggestedUpdates.filter((u) => u.status === 'pending').length;
 
   return (
     <MainContent>
@@ -120,7 +154,7 @@ export default function DocsPage() {
       {/* Known Issues Tab */}
       {activeTab === 'issues' && (
         <StaggerContainer className="space-y-4">
-          {mockKnownIssues.map((issue) => {
+          {knownIssues.map((issue) => {
             const isExpanded = expandedIssue === issue.id;
             const status = issueStatusConfig[issue.status] || issueStatusConfig.active;
             const severity = severityConfig[issue.severity] || severityConfig.medium;
@@ -205,7 +239,7 @@ export default function DocsPage() {
                             <div>
                               <p className="text-xs text-zinc-500 mb-2">Related Signals</p>
                               <div className="flex flex-wrap gap-2">
-                                {issue.related_signals.map((signalId) => (
+                                {issue.related_signals.map((signalId: string) => (
                                   <Link
                                     key={signalId}
                                     href={`/signals?id=${signalId}`}
@@ -245,9 +279,10 @@ export default function DocsPage() {
       {/* Suggested Updates Tab */}
       {activeTab === 'updates' && (
         <StaggerContainer className="space-y-4">
-          {mockSuggestedDocUpdates.map((update) => {
+          {suggestedUpdatesTyped.map((update) => {
             const isExpanded = expandedUpdate === update.id;
-            const status = updateStatusConfig[update.status] || updateStatusConfig.pending;
+            const statusKey = typeof update.status === 'string' ? update.status : 'pending';
+            const status = updateStatusConfig[statusKey] || updateStatusConfig.pending;
 
             return (
               <StaggerItem key={update.id}>
@@ -255,9 +290,7 @@ export default function DocsPage() {
                   layout
                   className={cn(
                     'rounded-lg surface-card surface-border overflow-hidden',
-                    update.status === 'pending'
-                      ? 'border-amber-500/30'
-                      : 'border-zinc-200 dark:border-zinc-800'
+                    statusKey === 'pending' ? 'border-amber-500/30' : 'border-zinc-200 dark:border-zinc-800'
                   )}
                 >
                   {/* Header */}
@@ -272,22 +305,22 @@ export default function DocsPage() {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="text-base font-medium text-zinc-900 dark:text-white">
-                            {update.title}
+                            {String(update.title || '')}
                           </h3>
                           <span className={cn('px-2 py-0.5 rounded text-xs font-medium', status.bgColor, status.color)}>
-                            {update.status.toUpperCase()}
+                            {String((update.status || '').toString()).toUpperCase()}
                           </span>
                         </div>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
-                          {update.summary}
+                          {String(update.summary || '')}
                         </p>
                         <div className="flex items-center gap-4 mt-2">
                           <span className="flex items-center gap-1 text-xs text-zinc-500">
                             <Clock className="w-3 h-3" />
-                            {formatRelativeTime(update.created_at)}
+                            {formatRelativeTime(String(update.created_at || ''))}
                           </span>
                           <span className="text-xs text-zinc-500">
-                            Target: {update.target_doc}
+                            Target: {String(update.target_doc || '')}
                           </span>
                         </div>
                       </div>
@@ -317,7 +350,7 @@ export default function DocsPage() {
                             <p className="text-xs text-zinc-500 mb-2">Suggested Addition</p>
                             <div className="p-4 rounded-lg bg-fuchsia-500/5 border border-fuchsia-500/20">
                               <pre className="text-sm text-zinc-900 dark:text-white whitespace-pre-wrap font-sans">
-                                {update.suggested_content}
+                                {String(update.suggested_content || '')}
                               </pre>
                             </div>
                           </div>
@@ -325,7 +358,7 @@ export default function DocsPage() {
                           {/* Source Context */}
                           <div className="p-4 rounded-lg surface-subcard surface-border">
                             <p className="text-xs text-zinc-500 mb-1">Source Context</p>
-                            <p className="text-sm text-zinc-700 dark:text-zinc-300">{update.source_context}</p>
+                            <p className="text-sm text-zinc-700 dark:text-zinc-300">{String(update.source_context || '')}</p>
                           </div>
 
                           {/* Related Action */}
@@ -333,16 +366,16 @@ export default function DocsPage() {
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-zinc-500">Derived from action:</span>
                               <Link
-                                href={`/actions?id=${update.related_action_id}`}
+                                href={`/actions?id=${String(update.related_action_id)}`}
                                 className="px-2 py-1 rounded bg-cyan-500/10 text-xs text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 transition-colors font-mono"
                               >
-                                {update.related_action_id}
+                                {String(update.related_action_id)}
                               </Link>
                             </div>
                           )}
 
                           {/* Approval Controls */}
-                          {update.status === 'pending' && (
+                          {statusKey === 'pending' && (
                             <div className="pt-4 border-t border-zinc-200 dark:border-zinc-700">
                               <div className="flex items-center justify-between">
                                 <span className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -385,7 +418,7 @@ export default function DocsPage() {
           })}
 
           {/* Empty State for Updates */}
-          {mockSuggestedDocUpdates.length === 0 && (
+          {suggestedUpdates.length === 0 && (
             <ScrollReveal>
               <div className="rounded-lg surface-card surface-border p-12 text-center">
                 <Edit3 className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
@@ -400,7 +433,7 @@ export default function DocsPage() {
       )}
 
       {/* Empty State for Issues */}
-      {activeTab === 'issues' && mockKnownIssues.length === 0 && (
+  {activeTab === 'issues' && knownIssues.length === 0 && (
         <ScrollReveal>
           <div className="rounded-lg surface-card surface-border p-12 text-center">
             <AlertCircle className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />

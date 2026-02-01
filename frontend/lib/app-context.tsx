@@ -1,8 +1,8 @@
 'use client';
 
-import { createContext, useContext, useReducer, useCallback } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import type { Incident, Signal, AgentLoop, SystemHealth } from '@/types';
-import { mockIncidents, mockAgentLoop, mockSystemHealth } from './mock-data';
+import { useApiContext } from './api-context';
 
 interface AppState {
   incidents: Incident[];
@@ -17,16 +17,35 @@ type AppAction =
   | { type: 'SET_INCIDENTS'; payload: Incident[] }
   | { type: 'SELECT_INCIDENT'; payload: Incident | null }
   | { type: 'UPDATE_AGENT_LOOP'; payload: Partial<AgentLoop> }
-  | { type: 'UPDATE_SYSTEM_HEALTH'; payload: Partial<SystemHealth> }
+  | { type: 'UPDATE_SYSTEM_HEALTH'; payload: SystemHealth }
   | { type: 'TOGGLE_SIDEBAR' }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'ADD_SIGNAL'; payload: { incidentId: string; signal: Signal } };
 
 const initialState: AppState = {
-  incidents: mockIncidents,
+  incidents: [],
   selectedIncident: null,
-  agentLoop: mockAgentLoop,
-  systemHealth: mockSystemHealth,
+  agentLoop: {
+    currentState: 'idle',
+    lastStateChange: new Date().toISOString(),
+    observationsCount: 0,
+    reasoningCycles: 0,
+    decisionsToday: 0,
+    actionsToday: 0,
+    autoHealRate: 0,
+    pendingApprovals: 0,
+  },
+  systemHealth: {
+  overall: 'degraded',
+  apiHealth: 100,
+  webhookHealth: 100,
+  checkoutFailureRate: 0,
+  migrationProgress: 0,
+  activeIncidents: 0,
+  affectedMerchants: 0,
+  currentMigrationPhase: 'mid_migration',
+  resolvedToday: 0,
+  },
   sidebarCollapsed: false,
   isLoading: false,
 };
@@ -40,7 +59,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'UPDATE_AGENT_LOOP':
       return { ...state, agentLoop: { ...state.agentLoop, ...action.payload } };
     case 'UPDATE_SYSTEM_HEALTH':
-      return { ...state, systemHealth: { ...state.systemHealth, ...action.payload } };
+      return { ...state, systemHealth: action.payload };
     case 'TOGGLE_SIDEBAR':
       return { ...state, sidebarCollapsed: !state.sidebarCollapsed };
     case 'SET_LOADING':
@@ -67,7 +86,17 @@ interface AppContextValue extends AppState {
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const apiCtx = useApiContext();
   const [state, dispatch] = useReducer(appReducer, initialState);
+
+  useEffect(() => {
+    if (apiCtx.useApi) {
+      dispatch({ type: 'SET_INCIDENTS', payload: apiCtx.incidents });
+      dispatch({ type: 'UPDATE_AGENT_LOOP', payload: apiCtx.agentLoop });
+      dispatch({ type: 'UPDATE_SYSTEM_HEALTH', payload: apiCtx.systemHealth });
+    }
+    dispatch({ type: 'SET_LOADING', payload: apiCtx.loading });
+  }, [apiCtx.useApi, apiCtx.incidents, apiCtx.agentLoop, apiCtx.systemHealth, apiCtx.loading]);
 
   const selectIncident = useCallback((incident: Incident | null) => {
     dispatch({ type: 'SELECT_INCIDENT', payload: incident });

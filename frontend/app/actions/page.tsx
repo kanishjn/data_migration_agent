@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import {
   ShieldCheck,
-  Play,
-  Pause,
   Check,
   X,
   Clock,
@@ -17,24 +15,43 @@ import {
   User,
   Bot,
   AlertTriangle,
-  ExternalLink,
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MainContent, PageHeader } from '@/components/layout';
-import { ConfidenceMeter } from '@/components/ui';
 import { ScrollReveal, StaggerContainer, StaggerItem } from '@/components/motion';
-import { mockPendingActions, mockDecisions } from '@/lib/mock-data';
+import { useApiContext } from '@/lib/api-context';
 import { formatRelativeTime } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 export default function ActionsPage() {
-  const [expandedId, setExpandedId] = useState<string | null>(mockPendingActions[0]?.id || null);
+  const { pendingActions, useApi, loading, error, approveAction, rejectAction } = useApiContext();
+  const [expandedId, setExpandedId] = useState<string | null>(pendingActions[0]?.id || null);
   const [previewArtifact, setPreviewArtifact] = useState<string | null>(null);
+  const [actioningId, setActioningId] = useState<string | null>(null);
 
-  // Get linked decision
   const getLinkedDecision = (decisionId: string) => {
-    return mockDecisions.find((d) => d.id === decisionId);
+    // try to find a decision in pendingActions or actionHistory metadata if available
+    // fallback: undefined
+    return undefined;
+  };
+
+  const handleApprove = async (actionId: string) => {
+    setActioningId(actionId);
+    try {
+      await approveAction(actionId);
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const handleReject = async (actionId: string) => {
+    setActioningId(actionId);
+    try {
+      await rejectAction(actionId);
+    } finally {
+      setActioningId(null);
+    }
   };
 
   // Status configuration
@@ -42,12 +59,12 @@ export default function ActionsPage() {
     pending: { color: 'text-amber-500', bgColor: 'bg-amber-500/10', icon: Clock },
     approved: { color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', icon: Check },
     rejected: { color: 'text-rose-500', bgColor: 'bg-rose-500/10', icon: X },
-    executed: { color: 'text-cyan-500', bgColor: 'bg-cyan-500/10', icon: Play },
+    executed: { color: 'text-cyan-500', bgColor: 'bg-cyan-500/10', icon: X },
   };
 
   // Stats
-  const pendingCount = mockPendingActions.filter((a) => a.status === 'pending').length;
-  const approvedCount = mockPendingActions.filter((a) => a.status === 'approved').length;
+  const pendingCount = pendingActions.filter((a) => a.status === 'pending').length;
+  const approvedCount = pendingActions.filter((a) => a.status === 'approved' || a.status === 'executed').length;
 
   return (
     <MainContent>
@@ -105,9 +122,24 @@ export default function ActionsPage() {
         </div>
       </ScrollReveal>
 
+      {/* API status banner */}
+      {useApi && (
+        <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-700 dark:text-emerald-400">
+          Connected to backend API • {pendingCount} pending actions
+        </div>
+      )}
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-sm text-rose-600 dark:text-rose-400">
+          {error}
+        </div>
+      )}
+      {loading && (
+        <div className="mb-4 text-sm text-foreground-muted">Loading...</div>
+      )}
+
       {/* Action Cards */}
       <StaggerContainer className="space-y-4">
-        {mockPendingActions.map((action) => {
+        {pendingActions.map((action) => {
           const isExpanded = expandedId === action.id;
           const status = statusConfig[action.status] || statusConfig.pending;
           const StatusIcon = status.icon;
@@ -156,7 +188,7 @@ export default function ActionsPage() {
                             onClick={(e) => e.stopPropagation()}
                             className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline"
                           >
-                            From decision: {linkedDecision.action_type.replace(/_/g, ' ')}
+                            From decision: {String((linkedDecision as any).action_type || (linkedDecision as any).title)}
                           </Link>
                         )}
                       </div>
@@ -207,8 +239,8 @@ export default function ActionsPage() {
                           </div>
                         </div>
 
-                        {/* Draft Artifact Preview */}
-                        {action.draft_artifact && (
+                        {/* Content / Draft Artifact Preview */}
+                        {(action.draft_artifact || action.description) && (
                           <div>
                             <div className="flex items-center justify-between mb-3">
                               <h4 className="text-sm font-medium text-zinc-900 dark:text-white flex items-center gap-2">
@@ -226,10 +258,10 @@ export default function ActionsPage() {
                             <div className="p-4 rounded-lg bg-fuchsia-500/5 border border-fuchsia-500/20">
                               <div className="flex items-center justify-between mb-2">
                                 <span className="text-xs text-fuchsia-600 dark:text-fuchsia-400 font-medium">
-                                  {action.draft_artifact.type.toUpperCase()}
+                                  {(action.draft_artifact?.type || 'MESSAGE').toUpperCase()}
                                 </span>
                                 <span className="text-xs text-zinc-500">
-                                  Target: {action.draft_artifact.target}
+                                  Target: {action.draft_artifact?.target || action.target}
                                 </span>
                               </div>
                               <AnimatePresence>
@@ -240,8 +272,8 @@ export default function ActionsPage() {
                                     exit={{ height: 0, opacity: 0 }}
                                     className="mt-3"
                                   >
-                                    <pre className="p-3 rounded bg-zinc-900 text-zinc-100 text-xs font-mono overflow-x-auto">
-                                      {action.draft_artifact.content}
+                                    <pre className="p-3 rounded bg-zinc-900 text-zinc-100 text-xs font-mono overflow-x-auto whitespace-pre-wrap">
+                                      {action.draft_artifact?.content || action.description || action.reason}
                                     </pre>
                                   </motion.div>
                                 )}
@@ -295,7 +327,7 @@ export default function ActionsPage() {
                         {/* Approval Controls */}
                         {action.status === 'pending' && (
                           <div className="pt-4 border-t border-zinc-200 dark:border-zinc-700">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between flex-wrap gap-4">
                               <div className="flex items-center gap-2">
                                 <AlertTriangle className="w-4 h-4 text-amber-500" />
                                 <span className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -303,13 +335,21 @@ export default function ActionsPage() {
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-colors text-sm font-medium">
+                                <button
+                                  onClick={() => handleReject(action.id)}
+                                  disabled={actioningId === action.id}
+                                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-colors text-sm font-medium disabled:opacity-50"
+                                >
                                   <X className="w-4 h-4" />
-                                  Reject
+                                  {actioningId === action.id ? 'Rejecting...' : 'Reject'}
                                 </button>
-                                <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors text-sm font-medium">
+                                <button
+                                  onClick={() => handleApprove(action.id)}
+                                  disabled={actioningId === action.id}
+                                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors text-sm font-medium disabled:opacity-50"
+                                >
                                   <Check className="w-4 h-4" />
-                                  Approve & Execute
+                                  {actioningId === action.id ? 'Approving...' : 'Approve & Execute'}
                                 </button>
                               </div>
                             </div>
@@ -343,7 +383,7 @@ export default function ActionsPage() {
       </StaggerContainer>
 
       {/* Empty State */}
-      {mockPendingActions.length === 0 && (
+      {pendingActions.length === 0 && (
         <ScrollReveal>
           <div className="rounded-lg surface-card surface-border p-12 text-center">
             <ShieldCheck className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />

@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
-from api.routes import agent, signals, actions
+from api.routes import agent, signals, actions, incidents
 from api.schemas import (
     HealthResponse,
     SimulationDataType,
@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
     """Application startup and shutdown lifecycle."""
     api_logger.info("Data Migration Agent Backend starting up...")
     api_logger.info(f"Simulation data directory: {SIMULATIONS_DIR}")
-    
+
     # Verify simulation files exist
     simulation_files = [
         "tickets.json",
@@ -57,16 +57,41 @@ async def lifespan(app: FastAPI):
         "webhook_failures.json",
         "migration_states.json",
     ]
-    
+
     for filename in simulation_files:
         filepath = SIMULATIONS_DIR / filename
         if filepath.exists():
             api_logger.info(f"✓ Found simulation data: {filename}")
         else:
             api_logger.warning(f"✗ Missing simulation data: {filename}")
-    
+
+    # Start background scheduler
+    scheduler = None
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from config import get
+        if get("scheduler.enabled", True):
+            from jobs.detect_incidents import run_detect_incidents
+            scheduler = BackgroundScheduler()
+            interval_min = get("scheduler.interval_minutes", 5)
+            scheduler.add_job(
+                run_detect_incidents,
+                "interval",
+                minutes=interval_min,
+                id="detect_incidents",
+            )
+            scheduler.start()
+            api_logger.info(f"✓ Background scheduler started (interval={interval_min} min)")
+    except Exception as e:
+        api_logger.warning(f"Scheduler not started: {e}")
+
     yield
-    
+
+    if scheduler:
+        try:
+            scheduler.shutdown(wait=False)
+        except Exception:
+            pass
     api_logger.info("Data Migration Agent Backend shutting down...")
 
 
@@ -122,12 +147,13 @@ app.add_middleware(
 
 
 # =============================================================================
-# Include Routers
+# Include Routers (all under /api for frontend integration)
 # =============================================================================
 
-app.include_router(signals.router)
-app.include_router(agent.router)
-app.include_router(actions.router)
+app.include_router(signals.router, prefix="/api")
+app.include_router(incidents.router, prefix="/api")
+app.include_router(agent.router, prefix="/api")
+app.include_router(actions.router, prefix="/api")
 
 
 # =============================================================================
@@ -146,14 +172,48 @@ async def root() -> dict[str, str]:
     }
 
 
-@app.get("/health", response_model=HealthResponse, tags=["root"])
-async def health_check() -> HealthResponse:
-    """Health check endpoint."""
-    return HealthResponse(
-        status="healthy",
-        version="0.1.0",
-        timestamp=datetime.utcnow(),
-    )
+@app.get("/health", tags=["root"])
+async def health_check() -> dict:
+    """Health check with database and component status."""
+    status_val = "healthy"
+    checks = {"api": "ok", "timestamp": datetime.utcnow().isoformat()}
+
+    try:
+        from memory.event_store import get_event_store
+        es = get_event_store()
+        checks["database"] = "ok"
+        checks["events_pending"] = es.count_unprocessed()
+    except Exception as e:
+        checks["database"] = f"error: {str(e)}"
+        status_val = "degraded"
+
+    try:
+        from config import get
+        checks["scheduler_enabled"] = get("scheduler.enabled", True)
+    except Exception:
+        checks["scheduler_enabled"] = True
+
+    return {
+        "status": status_val,
+        "version": "0.1.0",
+        "timestamp": datetime.utcnow(),
+        "checks": checks,
+    }
+
+
+@app.get("/api/health", tags=["root"])
+async def api_health() -> dict:
+    """Alias for health under /api prefix."""
+    return await health_check()
+
+
+@app.post("/api/events", status_code=status.HTTP_202_ACCEPTED, tags=["signals"])
+async def ingest_events(events: list[dict[str, Any]]) -> dict[str, Any]:
+    """Ingest raw events (alias for /api/signals/ingest/raw)."""
+    from memory.event_store import get_event_store
+    event_store = get_event_store()
+    ids = event_store.save_batch(events)
+    return {"accepted": len(ids), "event_ids": ids, "message": f"Accepted {len(ids)} event(s)"}
 
 
 # =============================================================================
@@ -258,6 +318,27 @@ async def load_simulation_data(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error loading simulation data: {str(e)}"
         )
+
+
+@app.post("/simulations/ingest", tags=["simulations"])
+async def ingest_simulation_to_events(
+    data_type: SimulationDataType = SimulationDataType.ALL,
+) -> dict[str, Any]:
+    """
+    Load simulation data and ingest it into the event store.
+
+    This seeds the event store with demo data for pattern detection.
+    """
+    from memory.event_store import get_event_store
+
+    response = await load_simulation_data(data_type)
+    event_store = get_event_store()
+    ids = event_store.save_batch(response.data)
+    return {
+        "ingested": len(ids),
+        "event_ids": ids,
+        "message": f"Loaded {len(ids)} events from simulation into event store",
+    }
 
 
 @app.get("/simulations/available", tags=["simulations"])

@@ -3,14 +3,14 @@ Actions API Routes - Human approval workflow for agent actions.
 
 This module handles the human-in-the-loop approval process:
 - Review proposed agent actions
-- Approve or reject actions
+- Approve or reject actions (with optional execution when approved)
 - Log decisions for agent feedback/learning
 
 The agent can propose actions, but cannot execute without human approval.
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -21,17 +21,80 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 from api.schemas import (
     ActionApprovalRequest,
     ActionApprovalResponse,
+    ActionApproveBody,
     ActionStatus,
     ErrorResponse,
 )
 from api.routes.agent import _agent_state, get_current_state
+from memory.memory_manager import MemoryManager
 from utils.logger import log_approval_decision, action_logger
 
 
 router = APIRouter(prefix="/actions", tags=["actions"])
 
-# In-memory log of approval decisions (for agent feedback loop)
+# In-memory log of approval decisions (for backward compat / quick stats)
 _approval_log: list[dict[str, Any]] = []
+
+
+def get_memory() -> MemoryManager:
+    return MemoryManager()
+
+
+def _find_action(action_id: str) -> tuple[Optional[dict], Optional[int], str]:
+    """Find action in agent state or memory. Returns (action, index, source)."""
+    for i, a in enumerate(_agent_state.get("proposed_actions", [])):
+        if a.get("action_id") == action_id:
+            return a, i, "memory"
+    memory = get_memory()
+    db_action = memory.get_action_by_id(action_id)
+    if db_action:
+        return db_action, None, "db"
+    return None, None, ""
+
+
+@router.post(
+    "/{action_id}/reject",
+    responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def reject_action(
+    action_id: str,
+    body: Optional[ActionApproveBody] = None,
+) -> dict[str, Any]:
+    """Reject an action (explicit reject endpoint)."""
+    b = body or ActionApproveBody(approved=False)
+    return await _do_approve(
+        ActionApprovalRequest(action_id=action_id, approved=False, reviewer=b.reviewer, feedback=b.feedback),
+        execute_if_approved=False,
+    )
+
+
+@router.post(
+    "/{action_id}/approve",
+    responses={
+        404: {"model": ErrorResponse, "description": "Action not found"},
+        409: {"model": ErrorResponse, "description": "Action already processed"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def approve_action_by_id(
+    action_id: str,
+    body: Optional[ActionApproveBody] = None,
+) -> dict[str, Any]:
+    """
+    Approve or reject action by ID (path parameter).
+
+    When approved and execute_if_approved=true, executes the action via the action agent.
+    """
+    b = body or ActionApproveBody()
+    return await _do_approve(
+        ActionApprovalRequest(
+            action_id=action_id,
+            approved=b.approved,
+            reviewer=b.reviewer,
+            feedback=b.feedback,
+        ),
+        execute_if_approved=b.execute_if_approved,
+    )
 
 
 @router.post(
@@ -43,59 +106,60 @@ _approval_log: list[dict[str, Any]] = []
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-async def approve_action(request: ActionApprovalRequest) -> ActionApprovalResponse:
+async def approve_action(
+    request: ActionApprovalRequest,
+    execute_if_approved: bool = True,
+) -> ActionApprovalResponse:
     """
-    Approve or reject a proposed agent action.
-    
-    This is the human-in-the-loop control point. The agent proposes actions
-    but cannot execute them without explicit human approval.
-    
-    The decision is logged for:
-    - Audit trail
-    - Agent feedback and learning
-    - Compliance requirements
+    Approve or reject a proposed agent action (body with action_id).
+
+    When approved and execute_if_approved=true, executes the action.
     """
+    return await _do_approve(request, execute_if_approved=execute_if_approved)
+
+
+async def _do_approve(
+    request: ActionApprovalRequest,
+    execute_if_approved: bool = True,
+) -> dict[str, Any]:
+    """Shared approval logic."""
     action_id = request.action_id
-    
-    # Find the action in agent state
-    action = None
-    action_index = None
-    
-    for i, a in enumerate(_agent_state.get("proposed_actions", [])):
-        if a.get("action_id") == action_id:
-            action = a
-            action_index = i
-            break
-    
+    action, action_index, source = _find_action(action_id)
+
     if action is None:
         action_logger.warning(f"Action not found: {action_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Action {action_id} not found"
         )
-    
-    # Check if already processed
-    current_status = action.get("status")
-    if current_status != ActionStatus.PENDING.value:
+
+    current_status = action.get("status", "pending")
+    if str(current_status).lower() != "pending":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Action {action_id} has already been {current_status}"
         )
-    
-    # Update action status
+
     new_status = ActionStatus.APPROVED if request.approved else ActionStatus.REJECTED
-    
-    _agent_state["proposed_actions"][action_index]["status"] = new_status.value
-    _agent_state["proposed_actions"][action_index]["reviewed_by"] = request.reviewer
-    _agent_state["proposed_actions"][action_index]["reviewed_at"] = datetime.utcnow().isoformat()
-    
-    if request.feedback:
-        _agent_state["proposed_actions"][action_index]["feedback"] = request.feedback
-    
-    # Log the decision
-    log_approval_decision(action_id, request.approved, request.reviewer)
-    
-    # Store in approval log for feedback loop
+    status_val = new_status.value if hasattr(new_status, "value") else str(new_status)
+
+    # Update in-memory state
+    if source == "memory" and action_index is not None:
+        _agent_state["proposed_actions"][action_index]["status"] = status_val
+        _agent_state["proposed_actions"][action_index]["reviewed_by"] = request.reviewer
+        _agent_state["proposed_actions"][action_index]["reviewed_at"] = datetime.utcnow().isoformat()
+        if request.feedback:
+            _agent_state["proposed_actions"][action_index]["feedback"] = request.feedback
+
+    # Update DB
+    memory = get_memory()
+    memory.update_action_status(
+        action_id=action_id,
+        status="approved" if request.approved else "rejected",
+        reviewer=request.reviewer,
+        feedback=request.feedback,
+    )
+
     approval_record = {
         "action_id": action_id,
         "action_type": action.get("action_type"),
@@ -106,42 +170,60 @@ async def approve_action(request: ActionApprovalRequest) -> ActionApprovalRespon
         "decided_at": datetime.utcnow().isoformat(),
     }
     _approval_log.append(approval_record)
-    
-    decision_text = "approved" if request.approved else "rejected"
-    action_logger.info(
-        f"Action {action_id} {decision_text} by {request.reviewer}"
-        f"{' with feedback' if request.feedback else ''}"
-    )
-    
-    return ActionApprovalResponse(
-        action_id=action_id,
-        status=new_status,
-        message=f"Action {decision_text} successfully",
-        logged_at=datetime.utcnow(),
-    )
+    log_approval_decision(action_id, request.approved, request.reviewer)
+
+    result = {"execution": None}
+    if request.approved and execute_if_approved:
+        try:
+            from orchestrator.agent_orchestrator import AgentOrchestrator
+            raw = action.get("raw_payload") or action.get("raw_action") or action
+            decision = {
+                "recommended_actions": [raw],
+                "requires_human_approval": False,
+            }
+            orch = AgentOrchestrator(dry_run=True, use_llm=False)
+            exec_result = orch.actor.act(decision, approved=True)
+            result["execution"] = exec_result
+        except Exception as e:
+            action_logger.warning(f"Action execution failed: {e}")
+            result["execution"] = {"status": "error", "message": str(e)}
+
+    return {
+        "action_id": action_id,
+        "status": new_status,
+        "message": f"Action {'approved' if request.approved else 'rejected'} successfully",
+        "logged_at": datetime.utcnow(),
+        **result,
+    }
 
 
 @router.get("/pending")
 async def list_pending_actions() -> dict[str, Any]:
     """
     List all actions awaiting human approval.
-    
-    Returns actions proposed by the agent that haven't been
-    approved or rejected yet.
+
+    Merges in-memory agent state with persisted pending_actions from DB.
     """
-    actions = _agent_state.get("proposed_actions", [])
-    pending = [
-        a for a in actions 
-        if a.get("status") == ActionStatus.PENDING.value
+    memory = get_memory()
+    db_pending = memory.get_pending_actions(status_filter="pending")
+    mem_pending = [
+        a for a in _agent_state.get("proposed_actions", [])
+        if str(a.get("status", "")).lower() == "pending"
     ]
-    
-    # Sort by confidence (highest first - most confident actions first)
-    pending.sort(key=lambda x: x.get("confidence", 0), reverse=True)
-    
-    return {
-        "count": len(pending),
-        "actions": pending
-    }
+    # Deduplicate by action_id (prefer DB as source of truth)
+    seen = {a.get("action_id") for a in db_pending}
+    for a in mem_pending:
+        if a.get("action_id") not in seen:
+            db_pending.append({
+                "action_id": a.get("action_id"),
+                "action_type": a.get("action_type"),
+                "target": a.get("target"),
+                "content": a.get("description"),
+                "confidence": a.get("confidence"),
+                "status": "pending",
+            })
+    db_pending.sort(key=lambda x: x.get("confidence", 0) or 0, reverse=True)
+    return {"count": len(db_pending), "actions": db_pending}
 
 
 @router.get("/history")

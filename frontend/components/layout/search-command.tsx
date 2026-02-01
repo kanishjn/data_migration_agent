@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -15,14 +15,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  mockIncidents,
-  mockRawSignals,
-  mockPatterns,
-  mockMerchants,
-  mockPendingActions,
-  mockKnownIssues,
-} from '@/lib/mock-data';
+import { useApiContext } from '@/lib/api-context';
+import type { Incident, AgentAction, Pattern } from '@/types';
 
 interface SearchResult {
   id: string;
@@ -40,13 +34,16 @@ export function SearchCommand() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const { incidents = [], events = [], patterns = [], pendingActions = [] } = useApiContext();
 
-  // Build search index
+  // Build search index from ApiContext data. Merchants and known issues are empty by default.
+  const merchants: Array<Record<string, unknown>> = [];
+  const knownIssues: Array<Record<string, unknown>> = [];
+
   const searchIndex = useMemo(() => {
     const results: SearchResult[] = [];
 
-    // Add incidents
-    mockIncidents.forEach((inc) => {
+  incidents.forEach((inc: Incident) => {
       results.push({
         id: inc.id,
         type: 'incident',
@@ -58,60 +55,55 @@ export function SearchCommand() {
       });
     });
 
-    // Add signals
-    mockRawSignals.forEach((sig) => {
+  events.forEach((ev: any) => {
       results.push({
-        id: sig.id,
+        id: String(ev.id),
         type: 'signal',
-        title: sig.title,
-        description: `${sig.source} • ${sig.severity}`,
+        title: ev.event_type || ev.title || 'signal',
+        description: `${ev.source || 'api'} • ${ev.severity || 'unknown'}`,
         href: '/signals',
         icon: Radio,
         color: 'text-cyan-400',
       });
     });
 
-    // Add patterns
-    mockPatterns.forEach((pat) => {
+  patterns.forEach((pat: Pattern) => {
       results.push({
         id: pat.id,
         type: 'pattern',
         title: `${pat.pattern_type} Pattern`,
-        description: `${pat.affected_merchants} merchants affected`,
+        description: `${pat.affected_merchants || 0} merchants affected`,
         href: '/patterns',
         icon: Brain,
         color: 'text-fuchsia-400',
       });
     });
 
-    // Add merchants
-    mockMerchants.forEach((m) => {
+  merchants.forEach((m: any) => {
       results.push({
         id: m.id,
         type: 'merchant',
         title: m.name,
-        description: `${m.migration_stage.replace('_', ' ')} • ${m.region}`,
+        description: `${(m.migration_stage || '').replace('_', ' ')} • ${m.region || ''}`,
         href: '/migration',
         icon: Store,
         color: 'text-amber-400',
       });
     });
 
-    // Add actions
-    mockPendingActions.forEach((act) => {
+  pendingActions.forEach((act: AgentAction) => {
       results.push({
         id: act.id,
         type: 'action',
         title: act.title,
-        description: `${act.status} • ${act.riskLevel} risk`,
+        description: `${act.status} • ${act.riskLevel || 'medium'} risk`,
         href: '/actions',
         icon: Zap,
         color: 'text-emerald-400',
       });
     });
 
-    // Add known issues
-    mockKnownIssues.forEach((issue) => {
+  knownIssues.forEach((issue: any) => {
       results.push({
         id: issue.id,
         type: 'doc',
@@ -124,7 +116,7 @@ export function SearchCommand() {
     });
 
     return results;
-  }, []);
+  }, [incidents, events, patterns, pendingActions]);
 
   // Filter results based on query
   const filteredResults = useMemo(() => {

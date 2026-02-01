@@ -16,7 +16,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { MainContent, PageHeader } from '@/components/layout';
 import { ScrollReveal } from '@/components/motion';
-import { mockMerchants, mockFailureEvents } from '@/lib/mock-data';
+// migration simulation data should come from backend or local simulation; remove mock import
 import { formatRelativeTime, cn } from '@/lib/utils';
 import type { MigrationStage, Merchant } from '@/types';
 
@@ -57,7 +57,7 @@ const stageConfig: Record<MigrationStage, { color: string; bgClass: string; text
 };
 
 export default function MigrationPage() {
-  const [merchants, setMerchants] = useState<Merchant[]>(mockMerchants);
+  const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [stageFilter, setStageFilter] = useState<MigrationStage | 'all'>('all');
   const [expandedMerchant, setExpandedMerchant] = useState<string | null>(null);
   const [activePipelineStep, setActivePipelineStep] = useState<string>('observe');
@@ -415,8 +415,9 @@ export default function MigrationPage() {
         <div className="rounded-xl border border-zinc-800 p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Recent Failure Events</h2>
           <div className="space-y-2">
-            {mockFailureEvents.slice(0, 6).map((event) => {
-              const config = stageConfig[event.migration_stage];
+            {/* Failure events are not wired yet; show empty state */}
+            {([] as any[]).slice(0, 6).map((event: any) => {
+              const config = stageConfig[event.migration_stage as MigrationStage];
               return (
                 <div
                   key={event.id}
@@ -428,13 +429,13 @@ export default function MigrationPage() {
                       event.resolved ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'
                     )} />
                     <div>
-                      <p className="text-sm text-white">{event.error_type.replace(/_/g, ' ')}</p>
+                      <p className="text-sm text-white">{String(event.error_type || '').replace(/_/g, ' ')}</p>
                       <p className="text-xs text-zinc-500">{event.merchant_id}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className={cn('px-2 py-0.5 rounded text-xs', config.bgClass, config.textClass)}>
-                      {stageLabels[event.migration_stage]}
+                    <span className={cn('px-2 py-0.5 rounded text-xs', config?.bgClass || '', config?.textClass || '')}>
+                      {stageLabels[event.migration_stage as MigrationStage]}
                     </span>
                     <span className="text-xs text-zinc-500 w-20 text-right">
                       {formatRelativeTime(event.timestamp)}
@@ -443,6 +444,9 @@ export default function MigrationPage() {
                 </div>
               );
             })}
+
+            {/* Empty state message */}
+            <div className="text-center py-8 text-zinc-500">No recent failure events available.</div>
           </div>
         </div>
       </ScrollReveal>

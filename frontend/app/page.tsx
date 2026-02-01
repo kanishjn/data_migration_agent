@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   AlertCircle,
   Activity,
@@ -16,6 +17,10 @@ import {
   Eye,
   Brain,
   Scale,
+  RefreshCw,
+  Database,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -24,11 +29,32 @@ import { GlassCard, SeverityBadge, StatusBadge, ConfidenceMeter } from '@/compon
 import { ScrollReveal, StaggerContainer, StaggerItem } from '@/components/motion';
 import { HealthTrendChart, MigrationProgressChart } from '@/components/charts';
 import { useApp } from '@/lib/app-context';
-import { mockHealthTrendData, mockActivityFeed, mockMigrationStageDistribution, mockMigrationMetrics } from '@/lib/mock-data';
+import { useApiContext } from '@/lib/api-context';
 import { formatRelativeTime, formatPercentage } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { incidents, systemHealth, agentLoop } = useApp();
+  const { useApi, ingestSimulation, refresh, loading, error, healthStatus, pendingActions } = useApiContext();
+  const [ingesting, setIngesting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleIngest = async () => {
+    setIngesting(true);
+    try {
+      await ingestSimulation();
+    } finally {
+      setIngesting(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
 
@@ -43,7 +69,7 @@ export default function DashboardPage() {
       bgColor: 'bg-gradient-to-br from-rose-500/15 to-rose-600/5',
       iconBg: 'bg-rose-500/10',
       borderColor: 'border-rose-500/20',
-      href: '/reasoning',
+      href: '/incidents',
     },
     {
       label: 'Checkout Failure Rate',
@@ -69,7 +95,7 @@ export default function DashboardPage() {
     },
     {
       label: 'Pending Approvals',
-      value: agentLoop.pendingApprovals.toString(),
+      value: pendingActions.filter(a => a.status === 'pending').length.toString(),
       description: 'Actions requiring human approval',
       icon: ShieldCheck,
       color: 'text-fuchsia-700 dark:text-fuchsia-400',
@@ -100,6 +126,54 @@ export default function DashboardPage() {
 
   return (
     <MainContent>
+      {/* API Status Banner */}
+      {useApi && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <Wifi className="w-4 h-4 text-emerald-500" />
+            <span className="text-sm text-emerald-700 dark:text-emerald-400">
+              Connected to Backend API
+              {healthStatus && ` • v${healthStatus.version}`}
+              {healthStatus?.checks?.events_pending !== undefined && ` • ${healthStatus.checks.events_pending} events pending`}
+            </span>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-medium disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </motion.div>
+      )}
+      {!useApi && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-3"
+        >
+          <WifiOff className="w-4 h-4 text-amber-500" />
+          <span className="text-sm text-amber-700 dark:text-amber-400">
+            Backend not connected • Connect backend at localhost:8000 for live data
+          </span>
+        </motion.div>
+      )}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center gap-3"
+        >
+          <AlertCircle className="w-4 h-4 text-rose-500" />
+          <span className="text-sm text-rose-600 dark:text-rose-400">{error}</span>
+        </motion.div>
+      )}
+
       {/* Hero Section */}
       <div className="relative mb-8">
         <ScrollReveal>
@@ -120,8 +194,23 @@ export default function DashboardPage() {
             </div>
             <PageHeader
               title="Command Center"
-              description="Real-time overview of your migration health and agent activity. The system is actively monitoring 245 endpoints across 3 regions."
+              description={useApi
+                ? `Real-time incident intelligence. ${incidents.length} incidents tracked, ${pendingActions.filter(a => a.status === 'pending').length} actions pending.`
+                : 'Real-time overview of your migration health and agent activity. Connect backend for live data.'}
             />
+            {useApi && (
+              <div className="mt-4 flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={handleIngest}
+                  disabled={ingesting}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500/20 border border-cyan-500/30 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/30 text-sm font-medium disabled:opacity-50 transition-colors"
+                >
+                  <Database className="w-4 h-4" />
+                  {ingesting ? 'Ingesting...' : 'Ingest Simulation Data'}
+                </button>
+                <span className="text-xs text-zinc-500">Seed event store with demo data for pattern detection</span>
+              </div>
+            )}
           </div>
         </ScrollReveal>
       </div>
@@ -166,15 +255,11 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex gap-4">
-            {mockMigrationStageDistribution.map((stage) => (
-              <div key={stage.stage} className="flex-1 p-4 rounded-lg surface-subcard surface-border">
-                <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">
-                  {stage.stage.replace('_', '-')}
-                </p>
-                <p className="text-2xl font-semibold text-zinc-900 dark:text-white">{stage.count}</p>
-                <p className="text-xs text-muted mt-1">{stage.percentage}% of total</p>
-              </div>
-            ))}
+            <div className="flex-1 p-4 rounded-lg surface-subcard surface-border">
+              <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Migration stages</p>
+              <p className="text-2xl font-semibold text-zinc-900 dark:text-white">N/A</p>
+              <p className="text-xs text-muted mt-1">Connect backend for distribution</p>
+            </div>
           </div>
         </div>
       </ScrollReveal>
@@ -195,7 +280,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="chart-container">
-              <HealthTrendChart data={mockHealthTrendData} height={260} />
+              <HealthTrendChart data={[]} height={260} />
             </div>
           </div>
         </ScrollReveal>
@@ -215,30 +300,8 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-3">
-              {mockActivityFeed.map((activity, index) => {
-                const Icon = activityIcons[activity.type] || Radio;
-                const colorClass = activityColors[activity.type] || 'text-zinc-400';
-                return (
-                  <motion.div
-                    key={activity.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 * index }}
-                    className="flex items-start gap-3 p-2 rounded-lg hover-surface transition-all"
-                  >
-                    <div className="p-1.5 rounded-md surface-subcard surface-border">
-                      <Icon className={`w-3.5 h-3.5 ${colorClass}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-zinc-900 dark:text-white truncate">{activity.title}</p>
-                      <p className="text-xs text-zinc-500 truncate">{activity.description}</p>
-                    </div>
-                    <span className="text-xs text-muted whitespace-nowrap">
-                      {formatRelativeTime(activity.timestamp)}
-                    </span>
-                  </motion.div>
-                );
-              })}
+              {/* Recent activity will be populated from backend when available */}
+              <div className="text-xs text-zinc-500">No recent activity yet — connect backend for live feed.</div>
             </div>
 
             <Link

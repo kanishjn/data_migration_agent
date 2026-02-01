@@ -2,19 +2,51 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { History, User, Bot, Filter, Search, ExternalLink } from 'lucide-react';
+import { History, User, Bot, Filter, Search, ExternalLink, RefreshCw, Wifi } from 'lucide-react';
 import Link from 'next/link';
 import { MainContent, PageHeader } from '@/components/layout';
 import { GlassCard, Button } from '@/components/ui';
 import { ScrollReveal, StaggerContainer, StaggerItem } from '@/components/motion';
-import { mockAuditLog } from '@/lib/mock-data';
+import { useApiContext } from '@/lib/api-context';
 import { formatDate, cn } from '@/lib/utils';
 
+interface AuditEntry {
+  id: string;
+  timestamp: string;
+  actor: 'agent' | 'human';
+  actorName?: string;
+  action: string;
+  description: string;
+  target?: string;
+  confidence?: number;
+  related_id?: string;
+  incidentId?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export default function AuditPage() {
+  const { actionHistory, pendingActions, useApi, loading, refresh } = useApiContext();
   const [filter, setFilter] = useState<'all' | 'agent' | 'human'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredLogs = mockAuditLog.filter((entry) => {
+  // Transform actions to audit log format
+  const auditEntries: AuditEntry[] = useApi && (actionHistory.length > 0 || pendingActions.length > 0)
+    ? [...actionHistory, ...pendingActions].map(action => ({
+        id: action.id,
+        timestamp: action.executed_at || action.approved_at || action.created_at || new Date().toISOString(),
+        actor: action.approved_by ? 'human' as const : 'agent' as const,
+        actorName: action.approved_by || 'Agent',
+        action: action.action_type || action.type || 'action',
+        description: action.description || action.reason || action.title,
+        target: action.target,
+        confidence: undefined,
+        related_id: action.decision_id,
+        incidentId: action.decision_id,
+        metadata: action.draft_artifact ? { artifact: action.draft_artifact } : undefined,
+      }))
+    : [];
+
+  const filteredLogs = auditEntries.filter((entry) => {
     const matchesFilter = filter === 'all' || entry.actor === filter;
     const matchesSearch =
       entry.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -30,6 +62,30 @@ export default function AuditPage() {
           description="Complete timeline of all agent and human actions. Every decision is logged for transparency and compliance."
         />
       </ScrollReveal>
+
+      {/* API Status */}
+      {useApi && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <Wifi className="w-4 h-4 text-emerald-500" />
+            <span className="text-sm text-emerald-700 dark:text-emerald-400">
+              Connected to backend • {auditEntries.length} audit entries
+            </span>
+          </div>
+          <button
+            onClick={() => refresh()}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-medium disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </motion.div>
+      )}
 
       {/* Filters */}
       <ScrollReveal delay={0.1}>

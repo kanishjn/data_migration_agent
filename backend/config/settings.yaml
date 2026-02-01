@@ -1,0 +1,31 @@
+# Centralized configuration for Migration Incident Intelligence System
+# Environment variables can override these (e.g., MIGRATION_OBSERVATION_WINDOW_MINUTES)
+
+reasoning:
+  confidence_threshold: 0.7
+  llm_model: "gemini-2.5-flash"
+  use_llm: false  # Set true when GEMINI_API_KEY is configured
+
+decision:
+  high_risk_threshold: 0.8
+  require_approval_for:
+    - engineering_escalation
+    - proactive_merchant_communication
+    - merchant_communication
+  confidence_threshold_high: 0.70
+  confidence_threshold_medium: 0.50
+
+observation:
+  window_size_minutes: 120
+  pattern_detection_threshold: 3
+  spike_threshold: 2
+
+scheduler:
+  enabled: true
+  interval_minutes: 5
+  batch_size: 500
+
+retrieval:
+  enabled: true
+  top_k: 3
+  include_known_issues: true

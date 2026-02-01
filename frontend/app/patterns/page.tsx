@@ -8,6 +8,8 @@ import {
   AlertCircle,
   ArrowRight,
   Activity,
+  RefreshCw,
+  Wifi,
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -15,11 +17,17 @@ import { MainContent, PageHeader } from '@/components/layout';
 import { ConfidenceMeter } from '@/components/ui';
 import { ScrollReveal, StaggerContainer, StaggerItem } from '@/components/motion';
 import { HealthTrendChart } from '@/components/charts';
-import { mockPatterns, mockHealthTrendData } from '@/lib/mock-data';
+// patterns are provided by the backend via ApiContext
+import { useApiContext } from '@/lib/api-context';
 import { formatRelativeTime } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 export default function PatternsPage() {
+  const { patterns, useApi, loading, refresh } = useApiContext();
+  
+  // Use only API patterns when available; otherwise show empty state
+  const displayPatterns = useApi ? patterns : [];
+  
   // Pattern type colors and icons
   const patternTypeConfig: Record<string, { color: string; bgColor: string; icon: typeof TrendingUp }> = {
     spike: { color: 'text-rose-700 dark:text-rose-400', bgColor: 'bg-rose-500/10', icon: TrendingUp },
@@ -27,6 +35,9 @@ export default function PatternsPage() {
     anomaly: { color: 'text-amber-700 dark:text-amber-400', bgColor: 'bg-amber-500/10', icon: AlertCircle },
     trend: { color: 'text-cyan-700 dark:text-cyan-400', bgColor: 'bg-cyan-500/10', icon: TrendingUp },
     cluster: { color: 'text-emerald-700 dark:text-emerald-400', bgColor: 'bg-emerald-500/10', icon: Users },
+    error_cluster: { color: 'text-rose-700 dark:text-rose-400', bgColor: 'bg-rose-500/10', icon: AlertCircle },
+    migration_correlation: { color: 'text-fuchsia-700 dark:text-fuchsia-400', bgColor: 'bg-fuchsia-500/10', icon: Activity },
+    temporal_spike: { color: 'text-amber-700 dark:text-amber-400', bgColor: 'bg-amber-500/10', icon: TrendingUp },
   };
 
   return (
@@ -50,10 +61,35 @@ export default function PatternsPage() {
         />
       </ScrollReveal>
 
+      {/* API Status */}
+      {useApi && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <Wifi className="w-4 h-4 text-emerald-500" />
+            <span className="text-sm text-emerald-700 dark:text-emerald-400">
+              Connected to backend • {displayPatterns.length} patterns detected
+            </span>
+          </div>
+          <button
+            onClick={() => refresh()}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-medium disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </motion.div>
+      )}
+
       {/* Pattern Summary Cards */}
       <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        {mockPatterns.map((pattern, index) => {
-          const config = patternTypeConfig[pattern.pattern_type] || patternTypeConfig.trend;
+        {displayPatterns.map((pattern, index) => {
+          const patternType = pattern.pattern_type || 'cluster';
+          const config = patternTypeConfig[patternType] || patternTypeConfig.cluster;
           const Icon = config.icon;
 
           return (
@@ -70,14 +106,14 @@ export default function PatternsPage() {
                     'px-2 py-1 rounded text-xs font-medium uppercase',
                     config.bgColor, config.color
                   )}>
-                    {pattern.pattern_type}
+                    {patternType.replace(/_/g, ' ')}
                   </span>
                 </div>
 
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm font-medium text-zinc-900 dark:text-white mb-1">
-                      {pattern.common_error}
+                      {pattern.common_error || 'Pattern detected'}
                     </p>
                     <p className="text-xs text-zinc-500">
                       Detected in {pattern.time_window}
@@ -95,7 +131,7 @@ export default function PatternsPage() {
                     <div className="flex items-center gap-2">
                       <Activity className="w-4 h-4 text-zinc-400" />
                       <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                        {pattern.signals.length}
+                        {pattern.signals?.length || 0}
                       </span>
                       <span className="text-xs text-zinc-500">signals</span>
                     </div>
@@ -144,8 +180,8 @@ export default function PatternsPage() {
               <span className="text-xs text-fuchsia-600 dark:text-fuchsia-400 font-medium">Live aggregation</span>
             </div>
           </div>
-          <div className="chart-container">
-            <HealthTrendChart data={mockHealthTrendData} height={300} />
+            <div className="chart-container">
+            <HealthTrendChart data={[]} height={300} />
           </div>
         </div>
       </ScrollReveal>
@@ -169,24 +205,25 @@ export default function PatternsPage() {
                 </tr>
               </thead>
               <tbody>
-                {mockPatterns.map((pattern) => {
-                  const config = patternTypeConfig[pattern.pattern_type] || patternTypeConfig.trend;
+                {displayPatterns.map((pattern) => {
+                  const patternType = pattern.pattern_type || 'cluster';
+                  const config = patternTypeConfig[patternType] || patternTypeConfig.cluster;
                   return (
                     <tr key={pattern.id} className="border-b border-zinc-100 dark:border-zinc-800/50 hover-surface">
                       <td className="px-4 py-3">
-                        <p className="text-sm text-zinc-900 dark:text-white">{pattern.common_error}</p>
+                        <p className="text-sm text-zinc-900 dark:text-white">{pattern.common_error || 'Pattern detected'}</p>
                         <p className="text-xs text-zinc-500 font-mono">{pattern.id}</p>
                       </td>
                       <td className="px-4 py-3">
                         <span className={cn('px-2 py-1 rounded text-xs font-medium', config.bgColor, config.color)}>
-                          {pattern.pattern_type}
+                          {patternType.replace(/_/g, ' ')}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-900 dark:text-white">
                         {pattern.affected_merchants} merchants
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-900 dark:text-white">
-                        {pattern.signals.length}
+                        {pattern.signals?.length || 0}
                       </td>
                       <td className="px-4 py-3">
                         <ConfidenceMeter value={pattern.confidence} size="sm" />

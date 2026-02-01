@@ -10,16 +10,21 @@ import {
   AlertTriangle,
   Code,
   ExternalLink,
+  RefreshCw,
+  Wifi,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MainContent, PageHeader } from '@/components/layout';
 import { SeverityBadge } from '@/components/ui';
 import { ScrollReveal, StaggerContainer, StaggerItem } from '@/components/motion';
-import { mockRawSignals } from '@/lib/mock-data';
+// signals are provided by the backend via ApiContext
+import { useApiContext } from '@/lib/api-context';
 import { formatRelativeTime } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import type { Signal, Severity } from '@/types';
 
 export default function SignalsPage() {
+  const { events, useApi, loading, refresh } = useApiContext();
   const [expandedSignal, setExpandedSignal] = useState<string | null>(null);
   const [filterSource, setFilterSource] = useState<string>('all');
   const [filterSeverity, setFilterSeverity] = useState<string>('all');
@@ -27,7 +32,25 @@ export default function SignalsPage() {
   const sources = ['all', 'checkout', 'webhook', 'api', 'ticket', 'metric'];
   const severities = ['all', 'critical', 'high', 'medium', 'low'];
 
-  const filteredSignals = mockRawSignals.filter((signal) => {
+  // Transform API events to signal format or use mock data
+  const signals: Signal[] = useApi && events.length > 0 
+    ? events.map(event => ({
+        id: String(event.id),
+        source: (event.source || 'api') as Signal['source'],
+        severity: 'medium' as Severity,
+        event_type: event.event_type,
+        title: event.event_type.replace(/_/g, ' '),
+        description: event.error_code || event.event_type,
+        timestamp: event.timestamp,
+        merchant_id: event.merchant_id,
+        migration_stage: (event.migration_stage as Signal['migration_stage']) || undefined,
+        raw_text: event.raw_payload ? JSON.stringify(event.raw_payload, null, 2) : undefined,
+        error_codes: event.error_code ? [event.error_code] : [],
+        metadata: event.raw_payload || {},
+      }))
+    : [];
+
+  const filteredSignals = signals.filter((signal) => {
     if (filterSource !== 'all' && signal.source !== filterSource) return false;
     if (filterSeverity !== 'all' && signal.severity !== filterSeverity) return false;
     return true;
@@ -57,6 +80,30 @@ export default function SignalsPage() {
           description="Ground truth layer. Raw signal events ingested from various sources. No AI interpretation — just the facts."
         />
       </ScrollReveal>
+
+      {/* API Status */}
+      {useApi && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <Wifi className="w-4 h-4 text-emerald-500" />
+            <span className="text-sm text-emerald-700 dark:text-emerald-400">
+              Connected to backend • {signals.length} events captured
+            </span>
+          </div>
+          <button
+            onClick={() => refresh()}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-medium disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </motion.div>
+      )}
 
       {/* Filters */}
       <ScrollReveal delay={0.1}>
