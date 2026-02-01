@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.env
+.venv/
+
+# Node
+package.json
+package-lock.json
+
+# Logs / runtime
+logs/

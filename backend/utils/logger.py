@@ -10,6 +10,8 @@ Provides structured logging for all backend components including:
 
 import logging
 import sys
+import os
+from pathlib import Path
 from datetime import datetime
 from typing import Optional
 
@@ -50,18 +52,38 @@ def setup_logger(
     
     # Optional file handler
     if log_file:
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        # Ensure directory exists
+        try:
+            Path(log_file).resolve().parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            # If we can't create the dir, fall back to console-only
+            logger.warning(f"Could not create log directory for {log_file}; continuing with console output only")
+        else:
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
     
     return logger
 
 
 # Pre-configured loggers for different components
-api_logger = setup_logger("api")
-tool_logger = setup_logger("tools")
-signal_logger = setup_logger("signals")
-action_logger = setup_logger("actions")
+# Allow configuration via environment variables
+_ENV_LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+try:
+    _LOG_LEVEL = getattr(logging, _ENV_LOG_LEVEL)
+except Exception:
+    _LOG_LEVEL = logging.INFO
+
+# Default log file path (workspace-level logs/agent.log)
+_DEFAULT_LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+_DEFAULT_LOG_DIR.mkdir(parents=True, exist_ok=True)
+_DEFAULT_LOG_FILE = str(_DEFAULT_LOG_DIR / "agent.log")
+
+# Create pre-configured loggers that write to both console and file
+api_logger = setup_logger("api", level=_LOG_LEVEL, log_file=_DEFAULT_LOG_FILE)
+tool_logger = setup_logger("tools", level=_LOG_LEVEL, log_file=_DEFAULT_LOG_FILE)
+signal_logger = setup_logger("signals", level=_LOG_LEVEL, log_file=_DEFAULT_LOG_FILE)
+action_logger = setup_logger("actions", level=_LOG_LEVEL, log_file=_DEFAULT_LOG_FILE)
 
 
 def log_tool_action(tool_name: str, action: str, details: dict) -> dict:
